@@ -9,6 +9,7 @@
 [build.environment]
   NITRO_PRESET = "netlify"
   NODE_VERSION = "22"
+  NPM_VERSION = "11"
   NPM_FLAGS = "--no-audit --no-fund"
   # macOS-only workaround in dev (see docs/issues.md). Harmless on Linux runners.
   TMPDIR = "/tmp"
