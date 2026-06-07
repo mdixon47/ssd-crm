@@ -9,12 +9,12 @@
       <section>
         <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wide mb-4">Contact Information</h2>
         <div class="grid grid-cols-2 gap-4">
-          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">First Name *</label><input v-model="form.fname" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" /></div>
-          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Last Name *</label><input v-model="form.lname" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" /></div>
-          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Email *</label><input v-model="form.email" type="email" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" /></div>
-          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Phone</label><input v-model="form.phone" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" /></div>
-          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Organization *</label><input v-model="form.org" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" /></div>
-          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Job Title</label><input v-model="form.title" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" /></div>
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">First Name *</label><input v-model="form.fname" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" ></div>
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Last Name *</label><input v-model="form.lname" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" ></div>
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Email *</label><input v-model="form.email" type="email" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" ></div>
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Phone</label><input v-model="form.phone" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" ></div>
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Organization *</label><input v-model="form.org" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" ></div>
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Job Title</label><input v-model="form.title" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" ></div>
         </div>
       </section>
 
@@ -55,11 +55,11 @@
               <option value="organic">Organic</option>
             </select>
           </div>
-          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Campaign</label><input v-model="form.campaign" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" /></div>
-          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Keyword (utm_term)</label><input v-model="form.keyword" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" /></div>
-          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Click ID (GCLID / FBCLID)</label><input v-model="form.gclid" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" /></div>
-          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Landing Page</label><input v-model="form.landing" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" /></div>
-          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Revenue ($)</label><input v-model.number="form.revenue" type="number" min="0" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" /></div>
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Campaign</label><input v-model="form.campaign" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" ></div>
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Keyword (utm_term)</label><input v-model="form.keyword" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" ></div>
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Click ID (GCLID / FBCLID)</label><input v-model="form.gclid" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" ></div>
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Landing Page</label><input v-model="form.landing" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" ></div>
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">Revenue ($)</label><input v-model.number="form.revenue" type="number" min="0" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" ></div>
         </div>
         <div class="mt-4">
           <label class="block text-xs font-semibold text-slate-500 mb-1.5">Notes</label>

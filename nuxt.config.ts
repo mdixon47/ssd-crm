@@ -27,8 +27,9 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    // Vercel deployment preset
-    preset: 'vercel',
+    // Deployment preset — override via NITRO_PRESET env (e.g. set in netlify.toml).
+    // Defaults to Vercel.
+    preset: process.env.NITRO_PRESET || 'vercel',
     // Allow streaming for MCP SSE endpoints
     experimental: {
       asyncContext: true,

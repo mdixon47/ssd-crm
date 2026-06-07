@@ -4,7 +4,7 @@
 // stated interest, and source fit. Flags high-value leads
 // for priority follow-up.
 // ============================================================
-import Anthropic from '@anthropic-ai/sdk'
+import type Anthropic from '@anthropic-ai/sdk'
 import type { Lead } from '~/types'
 
 export interface LeadScore {

@@ -5,7 +5,7 @@
 //
 // ⚠️  Output is a suggestion — human reviews before applying.
 // ============================================================
-import Anthropic from '@anthropic-ai/sdk'
+import type Anthropic from '@anthropic-ai/sdk'
 import type { SearchTerm, SearchTermLabel } from '~/types'
 
 export interface LabeledTerm {

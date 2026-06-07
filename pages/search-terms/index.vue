@@ -126,7 +126,7 @@
         <div class="space-y-3">
           <div>
             <label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Search Term *</label>
-            <input v-model="newTerm.term" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" />
+            <input v-model="newTerm.term" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" >
           </div>
           <div>
             <label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Campaign</label>
@@ -135,9 +135,9 @@
             </select>
           </div>
           <div class="grid grid-cols-3 gap-2">
-            <div><label class="text-xs font-semibold text-slate-500 block mb-1.5">Impressions</label><input v-model.number="newTerm.impressions" type="number" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" /></div>
-            <div><label class="text-xs font-semibold text-slate-500 block mb-1.5">Clicks</label><input v-model.number="newTerm.clicks" type="number" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" /></div>
-            <div><label class="text-xs font-semibold text-slate-500 block mb-1.5">Cost ($)</label><input v-model.number="newTerm.cost" type="number" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label class="text-xs font-semibold text-slate-500 block mb-1.5">Impressions</label><input v-model.number="newTerm.impressions" type="number" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" ></div>
+            <div><label class="text-xs font-semibold text-slate-500 block mb-1.5">Clicks</label><input v-model.number="newTerm.clicks" type="number" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" ></div>
+            <div><label class="text-xs font-semibold text-slate-500 block mb-1.5">Cost ($)</label><input v-model.number="newTerm.cost" type="number" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" ></div>
           </div>
         </div>
         <div class="flex justify-end gap-2 mt-5">

@@ -200,9 +200,9 @@ async function runAIAudit() {
 // AuditReportSection helper component (defined inline)
 const AuditReportSection = defineComponent({
   props: {
-    title: String,
-    items: Array as () => string[],
-    color: String,
+    title: { type: String, default: '' },
+    items: { type: Array as () => string[], default: () => [] },
+    color: { type: String, default: 'slate' },
   },
   setup(props) {
     const colorMap: Record<string, string> = {

@@ -1,0 +1,24 @@
+# Netlify build configuration for the Nuxt 3 / Nitro app.
+# Nitro's `netlify` preset emits the SSR function to `.netlify/functions-internal`
+# and the static client bundle to `dist`. No `@netlify/plugin-nuxt` required.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NITRO_PRESET = "netlify"
+  NODE_VERSION = "22"
+  NPM_FLAGS = "--no-audit --no-fund"
+  # macOS-only workaround in dev (see docs/issues.md). Harmless on Linux runners.
+  TMPDIR = "/tmp"
+
+# Preview deploys (branch + PR) get the same build pipeline as production.
+[context.production.environment]
+  NITRO_PRESET = "netlify"
+
+[context.deploy-preview.environment]
+  NITRO_PRESET = "netlify"
+
+[context.branch-deploy.environment]
+  NITRO_PRESET = "netlify"

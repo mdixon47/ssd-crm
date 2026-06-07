@@ -5,6 +5,86 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-07 (PR #7 follow-ups)
+
+### Workflow repair — round 2 (post-first-CI-run)
+
+First CI run on PR #7 surfaced platform / permission issues that weren't visible from local-only verification:
+
+**`npm ci` → `npm install` wasn't enough.** Both jobs still failed with `Cannot find module '@oxc-parser/binding-linux-x64-gnu'`. Root cause: the macOS-generated lockfile records `optionalDependencies` only for darwin-arm64; npm honours that even in `install` mode and refuses to add the Linux binding. Final fix (CI only): `rm -f package-lock.json` immediately before `npm install`. Local dev keeps the committed lockfile for reproducibility. Documented as [`issues.md` #14b](./issues.md).
+
+**Gitleaks `Resource not accessible by integration`.** The job tried to comment the scan summary on the PR but only had `contents: read`. Added `pull-requests: write` to the gitleaks job's `permissions:` block.
+
+**Dependency review failed: "GitHub Advanced Security not enabled".** The action requires GHAS for private repos (a paid feature). Marked the job `continue-on-error: true` and added an inline comment explaining how to make it blocking again once GHAS is on. Logged as [`issues.md` #14c](./issues.md).
+
+**`npm audit` job hit the same postinstall trap.** Added `--ignore-scripts` to that job's `npm install` (it doesn't need a prepared Nuxt project to read the dependency tree) and migrated `--production` → `--omit=dev` (the former is deprecated in npm 10+).
+
+**CodeQL failed: "Code scanning is not enabled".** Same shape as dependency-review — the upload requires a repo setting that's off by default on private repos. Marked the job `continue-on-error: true` and logged the enable-path in [`issues.md` #14d](./issues.md). Second-round CI status: ✓ Lint, ✓ Build, ✓ Gitleaks, ✓ npm audit, ✓ (typecheck — non-blocking, surfaces existing errors), CodeQL + Dependency review run informationally until GHAS / Code scanning are enabled.
+
+## 2026-06-07 (later still)
+
+### Build pipeline + Netlify wiring
+
+Preparing the PR that ships the workflow repair surfaced two more issues that had to be addressed for CI to actually pass end-to-end:
+
+**Typecheck unblock (`npm run typecheck`):**
+- No root `tsconfig.json` existed — `nuxt typecheck` failed at "Cannot find matching tsconfig.json". Added a one-line `tsconfig.json` that extends `./.nuxt/tsconfig.json`.
+- `vue-tsc` was not installed. Added `vue-tsc@^2` and `@nuxt/eslint-config@^0.7` (the latter was transitively available but `eslint.config.mjs` imports from it directly, so it's now a direct devDep).
+- Bumped Node heap for vue-tsc via `NODE_OPTIONS=--max-old-space-size=8192` in the `typecheck` script.
+- Once typecheck could actually run, it surfaced **40+ pre-existing type errors** across `agents/`, `components/leads/`, and `pages/` — type definitions in `types/index.ts` have drifted from hand-written component / agent code. Out of scope for workflow repair. Logged as [`issues.md` #5](./issues.md) and the CI `typecheck` job is now `continue-on-error: true` + removed from `build.needs`. Restores the pipeline's ability to go green while preserving visibility on the failures.
+
+**Netlify deployment target:**
+- `nuxt.config.ts` had `nitro.preset` hardcoded to `'vercel'`. Changed to `process.env.NITRO_PRESET || 'vercel'` so each host can self-configure via env.
+- Added `netlify.toml` at the repo root: `command = "npm run build"`, `publish = "dist"`, `NITRO_PRESET = "netlify"`, `NODE_VERSION = "22"`. Same env applied to `production`, `deploy-preview`, and `branch-deploy` contexts so PRs get preview builds.
+- Verified locally: `NITRO_PRESET=netlify npm run build` produces `.netlify/functions-internal/server/main.mjs` + `dist/` (7.53 MB / 1.75 MB gzipped). Vercel build still works as default.
+- `.gitignore` extended with `.netlify` and `dist`.
+
+**Repo hygiene:**
+- Reverted unintended `yarn.lock` modification — CI uses `npm ci`, so `package-lock.json` is canonical. `yarn.lock` removal flagged in [`issues.md` #14](./issues.md) pending team confirmation.
+
+State of CI on this PR:
+
+| Job | Status |
+|---|---|
+| Lint | ✅ blocking — passes |
+| Typecheck | ⚠️ runs, reports, does not block |
+| Build (`npm run build`) | ✅ blocking — passes locally with placeholder env |
+| Security (CodeQL, Gitleaks, dep review, npm audit) | runs on PR via the existing workflow |
+
+---
+
+## 2026-06-07 (later)
+
+### Workflow repair — lint pipeline operational
+
+Verified the CI lint job after `git init` and brought it to a passing state.
+
+- Installed `eslint@^9` as a devDependency (the `@nuxt/eslint` module did not provide the `eslint` binary in this setup, so `npm run lint` failed with "command not found" in CI).
+- Added a standalone `eslint.config.mjs` at the repository root using `@nuxt/eslint-config/flat` (`createConfigForNuxt({ features: { stylistic: false, tooling: true } })`). Avoids the brittle dependency on `@nuxt/eslint`'s auto-generated `.nuxt/eslint.config.mjs`, which was not being emitted by `nuxt prepare` in the installed v0.7.6.
+- Reverted the temporary `eslint.config.standalone: false` block in `nuxt.config.ts` (no longer needed under the standalone config).
+- Ignores: `.nuxt`, `.output`, `.vercel`, `dist`, `node_modules`, `coverage`, `supabase/.temp`, `supabase/.branches`.
+- Rule overrides: `no-console: ['warn', { allow: ['warn', 'error'] }]`.
+
+### Lint cleanup — 39 → 0
+
+Initial run reported **15 errors + 24 warnings**. `eslint --fix` resolved 31 of them; the remaining 8 were fixed manually:
+
+| File | Fix |
+|---|---|
+| `agents/WeeklyAuditAgent.ts` | Renamed unused token counter `totalTokens` → `_totalTokens` (3 sites). The audit agent's `AuditReport` doesn't expose `tokens_used` like the optimizer agent does — left as a follow-up rather than expanding scope. |
+| `server/api/ai/analyze-campaigns.post.ts` | `event` → `_event` (handler doesn't read the request). |
+| `server/api/ai/weekly-audit.post.ts` | `event` → `_event` (same). |
+| `server/mcp/google-ads/index.ts` | Dropped unused index parameter from `campaign.keywords.map((kw, i) => …)`. |
+| `server/mcp/linkedin-ads/index.ts` | Wired `date_range_end` into the live API `params` (was destructured but never used — completed the implementation). |
+| `pages/weekly-audit/index.vue` | Added `default` to inline `AuditReportSection` props (`title: ''`, `items: []`, `color: 'slate'`) to satisfy `vue/require-default-prop`. |
+
+Auto-fix also normalised: `import` → `import type` (4 files), `parseFloat` → `Number.parseFloat` (4 sites), Vue void-element self-closing (21 sites across `pages/leads/add.vue`, `pages/negative-keywords/index.vue`, `pages/search-terms/index.vue`, `pages/social/index.vue`), and de-duplicated a double `~/types` import in `agents/WeeklyAuditAgent.ts`.
+
+Final state: `npm run lint` exits 0 with no output. `npx nuxt prepare` succeeds. YAML for all three workflow files parses cleanly.
+
+---
+
+
 ## 2026-06-07
 
 ### GitHub Actions version refresh
@@ -21,6 +101,11 @@ Bumped pinned major versions in `.github/workflows/ci.yml` and `.github/workflow
 | Job `node-version` | `'20'` | `'22'` | Node 20 reached EOL 2026-04-30; Node 22 is Maintenance LTS through 2027-04 |
 
 Dependabot's `github-actions` ecosystem entry will catch future bumps automatically.
+
+Also:
+
+- Added `workflow_dispatch:` trigger to both workflows so they can be run manually from the **Actions** tab before opening a PR.
+- Pinned Node/npm in `package.json` `engines` (`node: ">=22.0.0 <25"`, `npm: ">=10.0.0"`) so local dev and CI agree on a supported runtime. `npm install` will warn if a developer is on an unsupported Node version.
 
 ### Environment
 
