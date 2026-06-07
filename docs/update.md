@@ -19,6 +19,8 @@ First CI run on PR #7 surfaced platform / permission issues that weren't visible
 
 **`npm audit` job hit the same postinstall trap.** Added `--ignore-scripts` to that job's `npm install` (it doesn't need a prepared Nuxt project to read the dependency tree) and migrated `--production` → `--omit=dev` (the former is deprecated in npm 10+).
 
+**CodeQL failed: "Code scanning is not enabled".** Same shape as dependency-review — the upload requires a repo setting that's off by default on private repos. Marked the job `continue-on-error: true` and logged the enable-path in [`issues.md` #14d](./issues.md). Second-round CI status: ✓ Lint, ✓ Build, ✓ Gitleaks, ✓ npm audit, ✓ (typecheck — non-blocking, surfaces existing errors), CodeQL + Dependency review run informationally until GHAS / Code scanning are enabled.
+
 ## 2026-06-07 (later still)
 
 ### Build pipeline + Netlify wiring

@@ -21,6 +21,11 @@ jobs:
   codeql:
     name: CodeQL (JS/TS)
     runs-on: ubuntu-latest
+    # CodeQL upload requires Code scanning to be enabled in the repo
+    # (Settings → Code security and analysis → Code scanning). Until that is on
+    # the analyze step 403s. Marked non-blocking so the pipeline can be green
+    # before the toggle is flipped; remove once Code scanning is enabled.
+    continue-on-error: true
     permissions:
       contents: read
       security-events: write

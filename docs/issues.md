@@ -105,6 +105,9 @@ Workaround for [npm/cli#4828](https://github.com/npm/cli/issues/4828): `package-
 ### 14c. `Dependency review` job is non-blocking until GHAS is enabled
 The `actions/dependency-review-action@v5` requires GitHub Advanced Security on private repos. The job runs with `continue-on-error: true` so CI doesn't gate on a feature flag we may not own. Enable GHAS in *Settings → Security → Code security* to make this actionable.
 
+### 14d. `CodeQL` job is non-blocking until Code scanning is enabled
+The CodeQL upload step needs *Code scanning* turned on in repo settings (*Settings → Code security and analysis → Code scanning*). Until that toggle is on, the analyze step 403s. Currently `continue-on-error: true`. Once Code scanning is enabled, drop that flag so findings can gate merges.
+
 ### 15. No unit tests
 No test framework is wired up. Recommended scope for a first pass:
 - `LeadInsertSchema` happy path + each rejection branch.
