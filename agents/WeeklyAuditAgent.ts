@@ -9,9 +9,8 @@
 // budgets, keywords, or any ad platform settings.
 // All recommendations require explicit human approval.
 // ============================================================
-import Anthropic from '@anthropic-ai/sdk'
-import type { AuditReport, Campaign, Lead, SearchTerm } from '~/types'
-import type { NegativeKeyword } from '~/types'
+import type Anthropic from '@anthropic-ai/sdk'
+import type { AuditReport, Campaign, Lead, SearchTerm, NegativeKeyword  } from '~/types'
 
 const SYSTEM_PROMPT = `You are SSD Consulting's senior paid acquisition strategist. Your job is to run a comprehensive weekly audit of all paid channels.
 
@@ -52,7 +51,7 @@ export async function runWeeklyAuditAgent(
 ): Promise<AuditReport> {
   const { campaigns, leads, searchTerms, negativeKeywords, weekDate } = context
   const modelUsed = 'claude-opus-4-6'
-  let totalTokens = 0
+  let _totalTokens = 0
 
   const tools: Anthropic.Tool[] = [
     {
@@ -115,7 +114,7 @@ Use all available tools to gather data, then produce a comprehensive audit repor
       messages,
     })
 
-    totalTokens += (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
+    _totalTokens += (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
 
     if (response.stop_reason === 'tool_use') {
       const toolUseBlocks = response.content.filter(b => b.type === 'tool_use')
@@ -171,7 +170,7 @@ ${rawAnalysis}`,
     ],
   })
 
-  totalTokens += (structuredResponse.usage?.input_tokens ?? 0) + (structuredResponse.usage?.output_tokens ?? 0)
+  _totalTokens += (structuredResponse.usage?.input_tokens ?? 0) + (structuredResponse.usage?.output_tokens ?? 0)
 
   try {
     const raw = structuredResponse.content[0]?.type === 'text' ? structuredResponse.content[0].text : '{}'
@@ -216,8 +215,8 @@ function handleAuditTool(
         qualified: c.qualified,
         conversions: c.conversions,
         revenue: c.revenue,
-        roas: c.spend > 0 ? parseFloat((c.revenue / c.spend).toFixed(2)) : 0,
-        cpl: c.leads > 0 ? parseFloat((c.spend / c.leads).toFixed(2)) : 0,
+        roas: c.spend > 0 ? Number.parseFloat((c.revenue / c.spend).toFixed(2)) : 0,
+        cpl: c.leads > 0 ? Number.parseFloat((c.spend / c.leads).toFixed(2)) : 0,
         qualification_rate: c.leads > 0 ? `${Math.round(c.qualified / c.leads * 100)}%` : '0%',
         status: c.status,
         health: c.revenue / c.spend >= 3 ? 'strong' : c.revenue / c.spend >= 1.5 ? 'moderate' : 'weak',
@@ -282,7 +281,7 @@ function handleAuditTool(
         allocation: campaigns.map(c => ({
           campaign: c.name,
           current_share: c.budgetShare,
-          roas: parseFloat((c.revenue / c.spend).toFixed(2)),
+          roas: Number.parseFloat((c.revenue / c.spend).toFixed(2)),
           recommended_action: c.revenue / c.spend >= 3 ? 'increase' : c.revenue / c.spend < 1.5 ? 'decrease' : 'hold',
         })),
         note: 'All budget changes require explicit human approval before implementation',

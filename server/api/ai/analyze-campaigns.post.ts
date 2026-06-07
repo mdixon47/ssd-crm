@@ -3,7 +3,7 @@ import { createSupabaseClient } from '~/server/utils/supabase'
 import { runCampaignOptimizerAgent } from '~/agents/CampaignOptimizerAgent'
 import { GOOGLE_CAMPAIGNS } from '~/lib/mockData'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (_event) => {
   const client = getAnthropicClient()
   const supabase = createSupabaseClient()
 

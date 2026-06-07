@@ -147,12 +147,12 @@ export function createGoogleAdsMCPServer() {
             mode: 'mock',
             campaign: campaign.name,
             date_range,
-            keywords: campaign.keywords.map((kw, i) => ({
+            keywords: campaign.keywords.map(kw => ({
               keyword: kw,
               status: 'ENABLED',
               impressions: Math.round(50 + Math.random() * 500),
               clicks: Math.round(5 + Math.random() * 50),
-              cost: parseFloat((10 + Math.random() * 100).toFixed(2)),
+              cost: Number.parseFloat((10 + Math.random() * 100).toFixed(2)),
               conversions: Math.round(Math.random() * 5),
               quality_score: Math.round(5 + Math.random() * 5),
             })),

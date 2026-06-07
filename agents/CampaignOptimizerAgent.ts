@@ -5,7 +5,7 @@
 //
 // ⚠️  Human approval required before acting on any output.
 // ============================================================
-import Anthropic from '@anthropic-ai/sdk'
+import type Anthropic from '@anthropic-ai/sdk'
 import type { Campaign, Lead } from '~/types'
 
 export interface CampaignRecommendation {

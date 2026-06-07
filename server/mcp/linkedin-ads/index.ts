@@ -159,6 +159,7 @@ export function createLinkedInAdsMCPServer() {
           fields: 'costInLocalCurrency,impressions,clicks,leadGenerationMailContactInfoShares,totalEngagements',
         }
         if (date_range_start) params['dateRange.start.day'] = date_range_start.split('-')[2]
+        if (date_range_end) params['dateRange.end.day'] = date_range_end.split('-')[2]
         const data = await liFetch('adAnalytics', params)
         return { content: [{ type: 'text' as const, text: JSON.stringify(data) }] }
       }

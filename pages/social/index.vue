@@ -181,7 +181,7 @@
       <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
         <h3 class="font-bold text-primary mb-4">Add Post / Content</h3>
         <div class="space-y-3">
-          <div><label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Title / Hook *</label><input v-model="newPost.title" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" /></div>
+          <div><label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Title / Hook *</label><input v-model="newPost.title" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" ></div>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Format</label>
@@ -196,7 +196,7 @@
               </select>
             </div>
           </div>
-          <div><label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Publish Date</label><input v-model="newPost.publish_date" type="date" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" /></div>
+          <div><label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Publish Date</label><input v-model="newPost.publish_date" type="date" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" ></div>
         </div>
         <div class="flex justify-end gap-2 mt-5">
           <button class="px-4 py-2 border border-slate-200 rounded-lg text-sm" @click="showAddPost = false">Cancel</button>
