@@ -22,7 +22,6 @@
     "@pinia/nuxt": "^0.10.1",
     "@supabase/supabase-js": "^2.45.0",
     "chart.js": "^4.4.4",
-    "npm": "^11.16.0",
     "nuxt": "^3.16.2",
     "pinia": "^3.0.2",
     "resend": "^6.12.4",
