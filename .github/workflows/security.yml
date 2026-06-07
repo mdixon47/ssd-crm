@@ -74,7 +74,9 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-      - run: npm ci --no-audit --no-fund
+      # Using `npm install` (not `npm ci`) to work around npm/cli#4828 — the
+      # macOS-generated lockfile lacks Linux native bindings for oxc-parser.
+      - run: npm install --no-audit --no-fund
       # Fail build only on high/critical advisories
       - name: Run npm audit
         run: npm audit --audit-level=high --production

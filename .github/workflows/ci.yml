@@ -24,7 +24,9 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-      - run: npm ci --no-audit --no-fund
+      # Using `npm install` (not `npm ci`) to work around npm/cli#4828 — the
+      # macOS-generated lockfile lacks Linux native bindings for oxc-parser.
+      - run: npm install --no-audit --no-fund
       - run: npm run lint
 
   typecheck:
@@ -40,7 +42,7 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-      - run: npm ci --no-audit --no-fund
+      - run: npm install --no-audit --no-fund
       - run: npx nuxt prepare
       - run: npm run typecheck
 
@@ -54,7 +56,7 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-      - run: npm ci --no-audit --no-fund
+      - run: npm install --no-audit --no-fund
       - name: Nuxt build
         env:
           # Build-time placeholders so the bundle compiles in CI without real secrets
