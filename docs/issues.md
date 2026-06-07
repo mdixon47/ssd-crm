@@ -90,15 +90,20 @@ The current `npm audit` CI job fails the build but doesn't write findings to the
 ### 14. Duplicate lockfiles (`yarn.lock` + `package-lock.json`)
 Both files are tracked. CI installs via `npm install` and `package-lock.json` is the source of truth. Delete `yarn.lock` once everyone confirms they're on npm — kept for now to avoid invalidating a working install for any teammate still using Yarn.
 
-### 14b. CI uses `npm install`, not `npm ci`
-Workaround for [npm/cli#4828](https://github.com/npm/cli/issues/4828): `package-lock.json` generated on macOS-arm64 doesn't record Linux-x64 native bindings for `oxc-parser` (a Nuxt transitive dep). `npm ci` strictly follows the lockfile and fails to install the missing binding on Ubuntu runners. `npm install` re-resolves and pulls the correct platform binding.
+### 14b. CI deletes `package-lock.json` before installing
+Workaround for [npm/cli#4828](https://github.com/npm/cli/issues/4828): `package-lock.json` generated on macOS-arm64 doesn't record Linux-x64 native bindings for `oxc-parser` (a Nuxt transitive dep). Both `npm ci` and `npm install` fail on Ubuntu runners with `Cannot find module '@oxc-parser/binding-linux-x64-gnu'` because even `npm install` honours the recorded `optionalDependencies` set in the lockfile and skips re-resolving the missing platform binding.
 
-**Trade-off**: lose strict lockfile reproducibility in CI. Acceptable for now since `package-lock.json` is still committed and pins exact versions.
+**Current workaround** (in `.github/workflows/ci.yml` + `security.yml`): `rm -f package-lock.json && npm install --no-audit --no-fund`. Forces npm to re-resolve from `package.json` on the Linux runner.
+
+**Trade-off**: CI loses strict lockfile reproducibility. Acceptable for now since `package-lock.json` is still committed for local-dev parity and `package.json` pins direct deps.
 
 **Permanent fix options**:
-- Regenerate `package-lock.json` on Linux (e.g. via a one-off CI workflow that commits the file back).
+- Regenerate `package-lock.json` on Linux (one-off bot workflow that commits it back).
 - Adopt pnpm or yarn4 (both handle cross-platform optional deps correctly).
 - Wait for npm to ship a real fix to the upstream issue.
+
+### 14c. `Dependency review` job is non-blocking until GHAS is enabled
+The `actions/dependency-review-action@v5` requires GitHub Advanced Security on private repos. The job runs with `continue-on-error: true` so CI doesn't gate on a feature flag we may not own. Enable GHAS in *Settings → Security → Code security* to make this actionable.
 
 ### 15. No unit tests
 No test framework is wired up. Recommended scope for a first pass:

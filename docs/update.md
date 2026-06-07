@@ -5,6 +5,20 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-07 (PR #7 follow-ups)
+
+### Workflow repair — round 2 (post-first-CI-run)
+
+First CI run on PR #7 surfaced platform / permission issues that weren't visible from local-only verification:
+
+**`npm ci` → `npm install` wasn't enough.** Both jobs still failed with `Cannot find module '@oxc-parser/binding-linux-x64-gnu'`. Root cause: the macOS-generated lockfile records `optionalDependencies` only for darwin-arm64; npm honours that even in `install` mode and refuses to add the Linux binding. Final fix (CI only): `rm -f package-lock.json` immediately before `npm install`. Local dev keeps the committed lockfile for reproducibility. Documented as [`issues.md` #14b](./issues.md).
+
+**Gitleaks `Resource not accessible by integration`.** The job tried to comment the scan summary on the PR but only had `contents: read`. Added `pull-requests: write` to the gitleaks job's `permissions:` block.
+
+**Dependency review failed: "GitHub Advanced Security not enabled".** The action requires GHAS for private repos (a paid feature). Marked the job `continue-on-error: true` and added an inline comment explaining how to make it blocking again once GHAS is on. Logged as [`issues.md` #14c](./issues.md).
+
+**`npm audit` job hit the same postinstall trap.** Added `--ignore-scripts` to that job's `npm install` (it doesn't need a prepared Nuxt project to read the dependency tree) and migrated `--production` → `--omit=dev` (the former is deprecated in npm 10+).
+
 ## 2026-06-07 (later still)
 
 ### Build pipeline + Netlify wiring

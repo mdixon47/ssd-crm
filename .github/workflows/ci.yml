@@ -23,9 +23,11 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
-          cache: "npm"
-      # Using `npm install` (not `npm ci`) to work around npm/cli#4828 — the
-      # macOS-generated lockfile lacks Linux native bindings for oxc-parser.
+      # Workaround for npm/cli#4828: the macOS-generated lockfile only records
+      # the darwin-arm64 native binding for oxc-parser, so Linux runners fail
+      # to install '@oxc-parser/binding-linux-x64-gnu'. Remove the lockfile so
+      # npm install re-resolves and picks the correct platform binding.
+      - run: rm -f package-lock.json
       - run: npm install --no-audit --no-fund
       - run: npm run lint
 
@@ -41,7 +43,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
-          cache: "npm"
+      - run: rm -f package-lock.json
       - run: npm install --no-audit --no-fund
       - run: npx nuxt prepare
       - run: npm run typecheck
@@ -55,7 +57,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
-          cache: "npm"
+      - run: rm -f package-lock.json
       - run: npm install --no-audit --no-fund
       - name: Nuxt build
         env:
