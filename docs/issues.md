@@ -87,8 +87,8 @@ Requires team GitHub handles. Add `/.github/CODEOWNERS` once roles are defined.
 ### 13. SARIF upload from `npm audit`
 The current `npm audit` CI job fails the build but doesn't write findings to the Security tab. Convert output to SARIF for a centralised view.
 
-### 14. Duplicate lockfiles (`yarn.lock` + `package-lock.json`)
-Both files are tracked. CI installs via `npm install` and `package-lock.json` is the source of truth. Delete `yarn.lock` once everyone confirms they're on npm — kept for now to avoid invalidating a working install for any teammate still using Yarn.
+### ~~14. Duplicate lockfiles (`yarn.lock` + `package-lock.json`)~~ — **resolved 2026-06-07**
+`yarn.lock` removed. See [`update.md`](./update.md).
 
 ### 14b. CI deletes `package-lock.json` before installing
 Workaround for [npm/cli#4828](https://github.com/npm/cli/issues/4828): `package-lock.json` generated on macOS-arm64 doesn't record Linux-x64 native bindings for `oxc-parser` (a Nuxt transitive dep). Both `npm ci` and `npm install` fail on Ubuntu runners with `Cannot find module '@oxc-parser/binding-linux-x64-gnu'` because even `npm install` honours the recorded `optionalDependencies` set in the lockfile and skips re-resolving the missing platform binding.

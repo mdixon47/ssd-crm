@@ -51,6 +51,17 @@ Added end-to-end email sending to leads directly from the CRM, with Claude Haiku
 
 ---
 
+## 2026-06-07 (Dependabot fix)
+
+### Remove `yarn.lock` — fixes Dependabot container failure
+
+Dependabot's Linux container was failing with exit code 1 on the `update_files` step. Root cause: both `yarn.lock` and `package-lock.json` were tracked, making the package manager ambiguous in the Dependabot environment.
+
+- Deleted `yarn.lock` via `git rm -f yarn.lock`. `package-lock.json` is and always was the canonical lockfile (CI uses `npm install`, engines pinned to npm ≥ 10).
+- Closes [`issues.md` #14](./issues.md).
+
+---
+
 ## 2026-06-07 (PR #7 follow-ups)
 
 ### Workflow repair — round 2 (post-first-CI-run)
