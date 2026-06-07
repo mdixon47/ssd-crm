@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci --no-audit --no-fund
+      - run: npx nuxt prepare
+      - run: npm run typecheck
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci --no-audit --no-fund
+      - name: Nuxt build
+        env:
+          # Build-time placeholders so the bundle compiles in CI without real secrets
+          ANTHROPIC_API_KEY: "ci-placeholder"
+          SUPABASE_URL: "https://ci.placeholder.supabase.co"
+          SUPABASE_KEY: "ci-placeholder-anon-key"
+          SUPABASE_SERVICE_KEY: "ci-placeholder-service-key"
+        run: npm run build

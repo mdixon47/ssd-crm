@@ -1,0 +1,103 @@
+// https://nuxt.com/docs/api/configuration/nuxt-config
+export default defineNuxtConfig({
+  compatibilityDate: '2024-11-01',
+  devtools: { enabled: true },
+
+  modules: [
+    '@nuxtjs/tailwindcss',
+    '@pinia/nuxt',
+    '@nuxtjs/supabase',
+  ],
+
+  supabase: {
+    // Redirect is disabled — we handle auth manually if needed
+    redirect: false,
+  },
+
+  runtimeConfig: {
+    // Server-only secrets
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || '',
+
+    // Public (exposed to client)
+    public: {
+      appName: 'SSD Consulting CRM',
+      mcpBaseUrl: process.env.MCP_BASE_URL || '/api/mcp',
+    },
+  },
+
+  nitro: {
+    // Vercel deployment preset
+    preset: 'vercel',
+    // Allow streaming for MCP SSE endpoints
+    experimental: {
+      asyncContext: true,
+    },
+  },
+
+  // ── Security headers ────────────────────────────────────────
+  // Applied by Nitro to every response. CSP is intentionally
+  // strict; relax 'connect-src' if you add new third-party APIs.
+  routeRules: {
+    '/**': {
+      headers: {
+        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), browsing-topics=()',
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Resource-Policy': 'same-origin',
+        'Content-Security-Policy': [
+          "default-src 'self'",
+          "script-src 'self' 'unsafe-inline'",
+          "style-src 'self' 'unsafe-inline'",
+          "img-src 'self' data: blob: https:",
+          "font-src 'self' data:",
+          "connect-src 'self' https://*.supabase.co https://api.anthropic.com",
+          "frame-ancestors 'none'",
+          "base-uri 'self'",
+          "form-action 'self'",
+        ].join('; '),
+      },
+    },
+  },
+
+  typescript: {
+    strict: true,
+    typeCheck: false, // enable after initial setup
+  },
+
+  tailwindcss: {
+    config: {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#1a3c6e',
+              light: '#2a5298',
+              50: '#f0f5ff',
+              100: '#dce8f8',
+            },
+            accent: {
+              DEFAULT: '#e8a020',
+              light: '#f5c060',
+            },
+            fb: '#1877F2',
+            ig: '#E1306C',
+            li: '#0A66C2',
+          },
+        },
+      },
+    },
+  },
+
+  app: {
+    head: {
+      title: 'SSD Consulting — Paid Acquisition CRM',
+      meta: [
+        { name: 'description', content: 'Google Ads + Social Media CRM with Claude AI Agents' },
+      ],
+    },
+  },
+})
