@@ -90,17 +90,20 @@ The current `npm audit` CI job fails the build but doesn't write findings to the
 ### ~~14. Duplicate lockfiles (`yarn.lock` + `package-lock.json`)~~ — **resolved 2026-06-07**
 `yarn.lock` removed. See [`update.md`](./update.md).
 
-### 14b. CI deletes `package-lock.json` before installing
-Workaround for [npm/cli#4828](https://github.com/npm/cli/issues/4828): `package-lock.json` generated on macOS-arm64 doesn't record Linux-x64 native bindings for `oxc-parser` (a Nuxt transitive dep). Both `npm ci` and `npm install` fail on Ubuntu runners with `Cannot find module '@oxc-parser/binding-linux-x64-gnu'` because even `npm install` honours the recorded `optionalDependencies` set in the lockfile and skips re-resolving the missing platform binding.
+### 14b. `package-lock.json` is intentionally untracked
+[npm/cli#4828](https://github.com/npm/cli/issues/4828): `package-lock.json` generated on macOS-arm64 only records the darwin-arm64 native bindings for `oxc-parser` (a Nuxt transitive dep). On Ubuntu / Netlify Linux runners, both `npm ci` and `npm install` then fail with `Cannot find module '@oxc-parser/binding-linux-x64-gnu'`. npm 11 also writes `{"optional": true}` phantom entries without a `version` field for uninstalled WASM optional bindings, which older npm versions reject as `Invalid Version:`.
 
-**Current workaround** (in `.github/workflows/ci.yml` + `security.yml`): `rm -f package-lock.json && npm install --no-audit --no-fund`. Forces npm to re-resolve from `package.json` on the Linux runner.
+**Current stance**: `package-lock.json` is in `.gitignore`. Each environment regenerates a local lockfile via `npm install`:
+- Local dev: lockfile written on first `npm install`; not committed.
+- CI (GitHub Actions): fresh `npm install` per run; no `rm -f` step needed.
+- Netlify: fresh `npm install` per build; uses bundled npm from Node 22.
 
-**Trade-off**: CI loses strict lockfile reproducibility. Acceptable for now since `package-lock.json` is still committed for local-dev parity and `package.json` pins direct deps.
+**Trade-off**: lose strict transitive-version pinning across environments. `package.json` ranges (`^x.y.z`) provide bounded resolution; this is acceptable while platform-skew on the lockfile cannot be solved upstream.
 
-**Permanent fix options**:
-- Regenerate `package-lock.json` on Linux (one-off bot workflow that commits it back).
-- Adopt pnpm or yarn4 (both handle cross-platform optional deps correctly).
-- Wait for npm to ship a real fix to the upstream issue.
+**To restore strict pinning later** (any of):
+- Generate the lockfile inside a Linux container (Docker / devcontainer) and commit that single canonical copy. Refresh on a dedicated bot workflow.
+- Adopt pnpm or yarn4 (both record per-platform optional deps correctly).
+- Track [npm/cli#4828](https://github.com/npm/cli/issues/4828) for an upstream fix.
 
 ### 14c. `Dependency review` job is non-blocking until GHAS is enabled
 The `actions/dependency-review-action@v5` requires GitHub Advanced Security on private repos. The job runs with `continue-on-error: true` so CI doesn't gate on a feature flag we may not own. Enable GHAS in *Settings → Security → Code security* to make this actionable.

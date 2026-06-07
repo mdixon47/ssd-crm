@@ -3,6 +3,12 @@ node_modules
 .pnp
 .pnp.js
 
+# Lockfile is intentionally untracked: macOS-generated lockfiles include
+# only platform-local optional deps (npm/cli#4828), which breaks Linux
+# runners on CI/Netlify. Each environment regenerates from package.json.
+# See docs/issues.md #14b.
+package-lock.json
+
 # Nuxt build output
 .nuxt
 .output

@@ -5,6 +5,23 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-07 (lockfile-less builds)
+
+### `package-lock.json` removed from version control
+
+Persistent Netlify install failures (`Cannot find module '@oxc-parser/binding-linux-x64-gnu'`, `Invalid Version:` on phantom optional entries) traced to macOS-generated lockfiles being incompatible with Linux runners ([npm/cli#4828](https://github.com/npm/cli/issues/4828)).
+
+**Changes:**
+- `.gitignore` — adds `package-lock.json`; `git rm --cached` removed it from the index.
+- `netlify.toml` — dropped `NPM_VERSION = "11"` pin; Netlify now uses npm bundled with Node 22 (10.x), matching GitHub Actions.
+- `.github/workflows/ci.yml` + `security.yml` — removed redundant `rm -f package-lock.json` steps (file no longer in the repo).
+- `docs/issues.md #14b` — restated as the permanent stance, with restoration paths documented.
+
+**Effect:** each environment (local dev, GitHub Actions, Netlify) runs a fresh `npm install` and resolves platform-correct native bindings. Trade-off: no strict cross-environment transitive pinning; `package.json` semver ranges provide bounded resolution.
+
+---
+
+
 ## 2026-06-07 (Neural Dark futuristic theme)
 
 ### Application-wide "Neural Dark" redesign
