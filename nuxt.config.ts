@@ -18,6 +18,8 @@ export default defineNuxtConfig({
     // Server-only secrets
     anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || '',
+    resendApiKey: process.env.RESEND_API_KEY || '',
+    resendFromEmail: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
 
     // Public (exposed to client)
     public: {

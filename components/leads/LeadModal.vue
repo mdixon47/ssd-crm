@@ -1,12 +1,29 @@
 <template>
   <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="$emit('close')">
     <div class="bg-white rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
+      <!-- Header -->
       <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white">
         <h3 class="font-bold text-primary text-lg">{{ lead.fname }} {{ lead.lname }}</h3>
         <button class="text-slate-400 hover:text-slate-700 text-2xl leading-none" @click="$emit('close')">×</button>
       </div>
 
-      <div class="px-6 py-5 space-y-5">
+      <!-- Tabs -->
+      <div class="flex border-b border-slate-100 px-6">
+        <button
+          v-for="tab in tabs"
+          :key="tab"
+          class="py-2.5 px-1 mr-5 text-sm font-medium border-b-2 transition"
+          :class="activeTab === tab
+            ? 'border-primary text-primary'
+            : 'border-transparent text-slate-400 hover:text-slate-600'"
+          @click="activeTab = tab"
+        >
+          {{ tab }}
+        </button>
+      </div>
+
+      <!-- Details Tab -->
+      <div v-if="activeTab === 'Details'" class="px-6 py-5 space-y-5">
         <!-- Contact info -->
         <div class="grid grid-cols-2 gap-4 text-sm">
           <div>
@@ -45,24 +62,30 @@
         <!-- Update Stage -->
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Stage</label>
-            <select v-model="form.stage" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50">
+            <label for="lead-stage" class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Stage</label>
+            <select id="lead-stage" v-model="form.stage" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50">
               <option v-for="s in STAGES" :key="s">{{ s }}</option>
             </select>
           </div>
           <div>
-            <label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Revenue ($)</label>
-            <input v-model.number="form.revenue" type="number" min="0" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50">
+            <label for="lead-revenue" class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Revenue ($)</label>
+            <input id="lead-revenue" v-model.number="form.revenue" type="number" min="0" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50">
           </div>
         </div>
 
         <div>
-          <label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Notes</label>
-          <textarea v-model="form.notes" rows="3" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50 resize-none" />
+          <label for="lead-notes" class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Notes</label>
+          <textarea id="lead-notes" v-model="form.notes" rows="3" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50 resize-none" />
         </div>
       </div>
 
-      <div class="px-6 pb-5 flex justify-between items-center">
+      <!-- Email Tab -->
+      <div v-if="activeTab === 'Email'" class="px-6 py-5">
+        <EmailComposer :lead="lead" />
+      </div>
+
+      <!-- Footer (Details tab only) -->
+      <div v-if="activeTab === 'Details'" class="px-6 pb-5 flex justify-between items-center">
         <button
           class="text-sm text-primary hover:underline"
           :disabled="scoringLead"
@@ -89,6 +112,10 @@ const emit = defineEmits<{ close: []; saved: [] }>()
 
 const leadsStore = useLeadsStore()
 const { scoreLead } = useAI()
+
+const tabs = ['Details', 'Email'] as const
+type Tab = typeof tabs[number]
+const activeTab = ref<Tab>('Details')
 
 const STAGES: LeadStage[] = [
   'New Lead', 'Contacted', 'Booked Consultation', 'Qualified',

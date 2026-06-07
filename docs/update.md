@@ -5,6 +5,52 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-07 (email feature)
+
+### Customer email composer + AI email agent
+
+Added end-to-end email sending to leads directly from the CRM, with Claude Haiku generating context-aware draft emails.
+
+**New dependencies:**
+- `resend` — email sending SDK (added to `package.json`)
+
+**New environment variables** (add to `.env`, documented in `.env.example`):
+- `RESEND_API_KEY` — from [resend.com/api-keys](https://resend.com/api-keys)
+- `RESEND_FROM_EMAIL` — verified sender address; defaults to `onboarding@resend.dev` for local testing without domain verification
+
+**Database:**
+- `supabase/migrations/002_email_messages.sql` — new `email_messages` table with columns: `id`, `created_at`, `lead_id` (FK → leads), `to_email`, `from_email`, `subject`, `body`, `status` (`sent`|`failed`), `resend_id`, `error`. Run in Supabase SQL editor to activate.
+
+**AI agent:**
+- `agents/EmailAgent.ts` — Claude Haiku (`claude-haiku-4-5-20251001`) drafts personalized outreach emails from lead context (name, org, stage, interest, notes) plus an optional `purpose` hint (e.g. "follow up on consultation"). Returns `{ subject, body }`. Falls back to a generic template on parse failure.
+
+**Server utils:**
+- `server/utils/resend.ts` — Resend client singleton, mirrors the pattern in `server/utils/anthropic.ts`. Exports `getResendClient()` and `getFromEmail()`.
+
+**API routes:**
+- `POST /api/email/draft` — calls EmailAgent, returns `{ subject, body }` without sending. Accepts `{ lead, purpose? }`.
+- `POST /api/email/send` — validates `{ leadId, to, subject, body }` with Zod, sends via Resend, persists result to `email_messages` (including failures for auditability). Returns the saved row.
+- `GET /api/email/:leadId` — returns all `email_messages` for a lead, ordered newest-first.
+
+**Types** (`types/index.ts`):
+- Added `EmailMessage` interface (mirrors DB row).
+- Added `EmailDraft` interface `{ subject: string; body: string }`.
+
+**`nuxt.config.ts`:**
+- Added `resendApiKey` and `resendFromEmail` to `runtimeConfig` server-only secrets block.
+
+**Components:**
+- `components/leads/EmailComposer.vue` — self-contained composer with:
+  - Pre-filled **To** field (lead email)
+  - **Subject** + **Body** inputs
+  - **✨ AI Draft** button — calls `/api/email/draft` with optional purpose
+  - **Set AI purpose** toggle — freetext hint for the EmailAgent (e.g. "send proposal")
+  - **Send Email** button — calls `/api/email/send`, clears form on success
+  - Sent history list below the compose form, loaded on mount via `/api/email/:leadId`
+- `components/leads/LeadModal.vue` — added **Details / Email** tab bar. Email tab renders `EmailComposer`. No changes to Details tab behaviour; footer buttons remain Details-tab-only.
+
+---
+
 ## 2026-06-07 (PR #7 follow-ups)
 
 ### Workflow repair — round 2 (post-first-CI-run)

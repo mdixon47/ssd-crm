@@ -191,6 +191,27 @@ export interface SocialPlatformData {
 }
 
 // ------------------------------------------------------------
+// Email
+// ------------------------------------------------------------
+export interface EmailMessage {
+  id: string
+  created_at: string
+  lead_id: string
+  to_email: string
+  from_email: string
+  subject: string
+  body: string
+  status: 'sent' | 'failed'
+  resend_id: string | null
+  error: string | null
+}
+
+export interface EmailDraft {
+  subject: string
+  body: string
+}
+
+// ------------------------------------------------------------
 // AI / MCP
 // ------------------------------------------------------------
 export type AgentType =
