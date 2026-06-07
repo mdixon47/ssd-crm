@@ -77,14 +77,14 @@ export default defineNuxtConfig({
         extend: {
           colors: {
             primary: {
-              DEFAULT: '#1a3c6e',
-              light: '#2a5298',
+              DEFAULT: '#0b1120',
+              light: '#111d35',
               50: '#f0f5ff',
               100: '#dce8f8',
             },
             accent: {
-              DEFAULT: '#e8a020',
-              light: '#f5c060',
+              DEFAULT: '#06b6d4',
+              light: '#22d3ee',
             },
             fb: '#1877F2',
             ig: '#E1306C',

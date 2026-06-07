@@ -3,13 +3,13 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-primary">Performance Dashboard</h1>
+        <h1 class="text-2xl font-bold text-cyan-400">Performance Dashboard</h1>
         <p class="text-sm text-slate-500 mt-0.5">All channels · {{ currentMonth }}</p>
       </div>
       <div class="flex gap-2">
         <button
           :disabled="auditRunning"
-          class="flex items-center gap-2 bg-accent text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-500 transition disabled:opacity-50"
+          class="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50"
           @click="runAudit"
         >
           <span v-if="auditRunning">⏳</span>
@@ -20,17 +20,17 @@
     </div>
 
     <!-- AI Audit Result -->
-    <div v-if="auditReport" class="mb-6 bg-green-50 border border-green-200 rounded-xl p-4">
+    <div v-if="auditReport" class="mb-6 rounded-xl p-4" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25)">
       <div class="flex items-start gap-3">
         <span class="text-2xl">✅</span>
         <div>
-          <div class="font-semibold text-green-800 mb-1">
+          <div class="font-semibold text-emerald-400 mb-1">
             Weekly AI Audit — {{ auditReport.overall_health === 'strong' ? '🟢 Strong' : auditReport.overall_health === 'moderate' ? '🟡 Moderate' : '🔴 Needs Attention' }}
           </div>
-          <p class="text-sm text-green-700">{{ auditReport.summary }}</p>
+          <p class="text-sm text-slate-300">{{ auditReport.summary }}</p>
           <div class="mt-3 flex flex-wrap gap-2">
-            <span v-for="rec in auditReport.campaigns_to_scale" :key="rec" class="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">📈 Scale: {{ rec }}</span>
-            <span v-for="rec in auditReport.campaigns_to_pause" :key="rec" class="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full font-medium">⏸ Review: {{ rec }}</span>
+            <span v-for="rec in auditReport.campaigns_to_scale" :key="rec" class="bg-emerald-500/15 text-emerald-400 text-xs px-2 py-1 rounded-full font-medium">📈 Scale: {{ rec }}</span>
+            <span v-for="rec in auditReport.campaigns_to_pause" :key="rec" class="bg-red-500/15 text-red-400 text-xs px-2 py-1 rounded-full font-medium">⏸ Review: {{ rec }}</span>
           </div>
         </div>
       </div>
@@ -38,40 +38,45 @@
 
     <!-- KPI Grid -->
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-      <div v-for="kpi in kpis" :key="kpi.label" class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+      <div
+        v-for="kpi in kpis"
+        :key="kpi.label"
+        class="rounded-xl p-4"
+        style="background:#0d1628;border:1px solid rgba(148,163,184,0.1)"
+      >
         <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">{{ kpi.label }}</div>
         <div
           :class="[
             'text-2xl font-bold',
-            kpi.highlight === 'good' ? 'text-green-600' : kpi.highlight === 'bad' ? 'text-red-600' : kpi.highlight === 'warn' ? 'text-amber-600' : 'text-primary',
+            kpi.highlight === 'good' ? 'text-emerald-400' : kpi.highlight === 'bad' ? 'text-red-400' : kpi.highlight === 'warn' ? 'text-amber-400' : 'text-slate-100',
           ]"
         >
           {{ kpi.value }}
         </div>
-        <div class="text-xs text-slate-400 mt-1">{{ kpi.sub }}</div>
+        <div class="text-xs text-slate-500 mt-1">{{ kpi.sub }}</div>
       </div>
     </div>
 
     <!-- Charts Row -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+      <div class="rounded-xl p-5" style="background:#0d1628;border:1px solid rgba(148,163,184,0.1)">
         <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">Revenue vs Spend by Channel</div>
         <canvas ref="revenueChartEl" height="180" />
       </div>
-      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+      <div class="rounded-xl p-5" style="background:#0d1628;border:1px solid rgba(148,163,184,0.1)">
         <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">Lead Funnel (All Channels)</div>
         <canvas ref="funnelChartEl" height="180" />
       </div>
     </div>
 
     <!-- Campaign Performance Table -->
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
-      <div class="px-5 py-4 border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+    <div class="rounded-xl overflow-hidden mb-6" style="background:#0d1628;border:1px solid rgba(148,163,184,0.1)">
+      <div class="px-5 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wide" style="border-bottom:1px solid rgba(148,163,184,0.08)">
         Campaign Performance Summary
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="bg-slate-50">
+          <thead style="background:#080e1c">
             <tr>
               <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Campaign</th>
               <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500">Spend</th>
@@ -82,8 +87,8 @@
               <th class="text-center px-4 py-3 text-xs font-semibold text-slate-500">Signal</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100">
-            <tr v-for="row in campaignRows" :key="row.name" class="hover:bg-slate-50/50 transition-colors">
+          <tbody class="divide-y divide-slate-700/30">
+            <tr v-for="row in campaignRows" :key="row.name" class="hover:bg-cyan-500/5 transition-colors">
               <td class="px-4 py-3">
                 <div class="flex items-center gap-2">
                   <span
@@ -91,23 +96,23 @@
                     class="text-xs px-2 py-0.5 rounded-full font-semibold"
                     :class="platformBadgeClass(row.platform)"
                   >{{ row.platform }}</span>
-                  <span class="font-medium text-slate-800">{{ row.name }}</span>
+                  <span class="font-medium text-slate-200">{{ row.name }}</span>
                 </div>
               </td>
-              <td class="px-4 py-3 text-right text-slate-700">${{ row.spend.toLocaleString() }}</td>
-              <td class="px-4 py-3 text-right text-slate-700">{{ row.leads }}</td>
-              <td class="px-4 py-3 text-right text-slate-500">${{ row.cpl }}</td>
-              <td class="px-4 py-3 text-right font-semibold text-slate-800">${{ row.revenue.toLocaleString() }}</td>
+              <td class="px-4 py-3 text-right text-slate-300">${{ row.spend.toLocaleString() }}</td>
+              <td class="px-4 py-3 text-right text-slate-300">{{ row.leads }}</td>
+              <td class="px-4 py-3 text-right text-slate-400">${{ row.cpl }}</td>
+              <td class="px-4 py-3 text-right font-semibold text-slate-100">${{ row.revenue.toLocaleString() }}</td>
               <td
                 class="px-4 py-3 text-right font-bold"
-                :class="row.roas >= 3 ? 'text-green-600' : row.roas >= 1.5 ? 'text-amber-600' : 'text-red-600'"
+                :class="row.roas >= 3 ? 'text-emerald-400' : row.roas >= 1.5 ? 'text-amber-400' : 'text-red-400'"
               >
                 {{ row.roas.toFixed(2) }}x
               </td>
               <td class="px-4 py-3 text-center">
                 <span
                   class="text-xs px-2 py-1 rounded-full font-semibold"
-                  :class="row.roas >= 3 ? 'bg-green-100 text-green-700' : row.roas >= 1.5 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'"
+                  :class="row.roas >= 3 ? 'bg-emerald-500/15 text-emerald-400' : row.roas >= 1.5 ? 'bg-amber-500/15 text-amber-400' : 'bg-red-500/15 text-red-400'"
                 >
                   {{ row.roas >= 3 ? 'Scale ↑' : row.roas >= 1.5 ? 'Hold' : 'Review ⚠' }}
                 </span>
@@ -134,7 +139,6 @@ const auditReport = ref<AuditReport | null>(null)
 
 const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' })
 
-// Build combined channel rows
 const campaignRows = computed(() => {
   const google = GOOGLE_CAMPAIGNS.map(c => ({
     name: c.name, platform: 'Google', spend: c.spend, leads: c.leads,
@@ -179,19 +183,23 @@ const kpis = computed(() => {
 
 function platformBadgeClass(platform: string) {
   const map: Record<string, string> = {
-    Google: 'bg-blue-100 text-blue-700',
-    Facebook: 'bg-blue-50 text-blue-800',
-    Instagram: 'bg-pink-100 text-pink-700',
-    LinkedIn: 'bg-sky-100 text-sky-700',
+    Google: 'bg-blue-500/15 text-blue-400',
+    Facebook: 'bg-blue-500/10 text-blue-400',
+    Instagram: 'bg-pink-500/15 text-pink-400',
+    LinkedIn: 'bg-sky-500/15 text-sky-400',
   }
-  return map[platform] ?? 'bg-slate-100 text-slate-600'
+  return map[platform] ?? 'bg-slate-500/15 text-slate-400'
 }
 
-// Charts
 const revenueChartEl = ref<HTMLCanvasElement>()
 const funnelChartEl = ref<HTMLCanvasElement>()
 let revenueChart: Chart | null = null
 let funnelChart: Chart | null = null
+
+const CHART_DEFAULTS = {
+  color: '#94a3b8',
+  grid: 'rgba(148,163,184,0.07)',
+}
 
 onMounted(() => {
   if (revenueChartEl.value) {
@@ -200,11 +208,20 @@ onMounted(() => {
       data: {
         labels: campaignRows.value.map(r => r.name.substring(0, 18)),
         datasets: [
-          { label: 'Revenue', data: campaignRows.value.map(r => r.revenue), backgroundColor: '#1a3c6ecc', borderRadius: 4 },
-          { label: 'Spend', data: campaignRows.value.map(r => r.spend), backgroundColor: '#dce3ef', borderRadius: 4 },
+          { label: 'Revenue', data: campaignRows.value.map(r => r.revenue), backgroundColor: '#06b6d4cc', borderRadius: 4 },
+          { label: 'Spend', data: campaignRows.value.map(r => r.spend), backgroundColor: '#7c3aedcc', borderRadius: 4 },
         ],
       },
-      options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }, scales: { y: { beginAtZero: true } } },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: CHART_DEFAULTS.color, font: { size: 11 } } },
+        },
+        scales: {
+          x: { ticks: { color: CHART_DEFAULTS.color }, grid: { color: CHART_DEFAULTS.grid } },
+          y: { beginAtZero: true, ticks: { color: CHART_DEFAULTS.color }, grid: { color: CHART_DEFAULTS.grid } },
+        },
+      },
     })
   }
 
@@ -220,9 +237,17 @@ onMounted(() => {
       type: 'bar',
       data: {
         labels: funnel.map(f => f.label),
-        datasets: [{ label: 'Leads', data: funnel.map(f => f.value), backgroundColor: ['#3a7bd5cc', '#22a053cc', '#e8a020cc', '#1a3c6ecc'], borderRadius: 4 }],
+        datasets: [{ label: 'Leads', data: funnel.map(f => f.value), backgroundColor: ['#06b6d4cc', '#10b981cc', '#f59e0bcc', '#7c3aedcc'], borderRadius: 4 }],
       },
-      options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { beginAtZero: true, ticks: { color: CHART_DEFAULTS.color }, grid: { color: CHART_DEFAULTS.grid } },
+          y: { ticks: { color: CHART_DEFAULTS.color }, grid: { color: CHART_DEFAULTS.grid } },
+        },
+      },
     })
   }
 })

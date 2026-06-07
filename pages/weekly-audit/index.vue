@@ -2,49 +2,59 @@
   <div class="p-6 max-w-4xl mx-auto">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-primary">Weekly Optimization Audit</h1>
+        <h1 class="text-2xl font-bold text-cyan-400">Weekly Optimization Audit</h1>
         <p class="text-sm text-slate-500 mt-0.5">Week of {{ weekDate }}</p>
       </div>
       <div class="flex items-center gap-3">
-        <span class="text-sm font-bold" :class="progressPct >= 80 ? 'text-green-600' : 'text-slate-600'">
+        <span class="text-sm font-bold" :class="progressPct >= 80 ? 'text-emerald-400' : 'text-slate-500'">
           {{ progressPct }}% complete
         </span>
         <button
           :disabled="auditRunning"
-          class="flex items-center gap-2 bg-accent text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-500 transition disabled:opacity-50"
+          class="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50"
           @click="runAIAudit"
         >
           <span>✨</span>
           {{ auditRunning ? 'Running Claude Audit...' : 'Run AI Audit Report' }}
         </button>
-        <button class="text-sm border border-slate-200 px-3 py-2 rounded-lg hover:border-slate-300" @click="resetChecklist">Reset</button>
+        <button
+          class="text-sm text-slate-400 hover:text-slate-200 transition-colors px-3 py-2 rounded-lg"
+          style="border:1px solid rgba(148,163,184,0.2)"
+          @click="resetChecklist"
+        >
+          Reset
+        </button>
       </div>
     </div>
 
     <!-- Progress bar -->
-    <div class="w-full bg-slate-200 rounded-full h-2 mb-6">
-      <div class="bg-primary h-2 rounded-full transition-all duration-500" :style="{ width: `${progressPct}%` }" />
+    <div class="w-full rounded-full h-1.5 mb-6" style="background:rgba(148,163,184,0.1)">
+      <div
+        class="h-1.5 rounded-full transition-all duration-500"
+        :class="progressPct >= 80 ? 'bg-emerald-400' : 'bg-cyan-500'"
+        :style="{ width: `${progressPct}%` }"
+      />
     </div>
 
     <!-- AI Report -->
-    <div v-if="auditReport" class="mb-6 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+    <div v-if="auditReport" class="mb-6 rounded-xl p-5 shadow-2xl" style="background:#0d1628;border:1px solid rgba(6,182,212,0.2)">
       <div class="flex items-center gap-3 mb-4">
         <span class="text-2xl">✨</span>
         <div>
-          <div class="font-bold text-primary text-base">AI Audit Report — Generated {{ new Date(auditReport.generated_at).toLocaleString() }}</div>
+          <div class="font-bold text-cyan-400 text-base">AI Audit Report — Generated {{ new Date(auditReport.generated_at).toLocaleString() }}</div>
           <div
             class="text-sm font-semibold"
-            :class="auditReport.overall_health === 'strong' ? 'text-green-600' : auditReport.overall_health === 'moderate' ? 'text-amber-600' : 'text-red-600'"
+            :class="auditReport.overall_health === 'strong' ? 'text-emerald-400' : auditReport.overall_health === 'moderate' ? 'text-amber-400' : 'text-red-400'"
           >
             {{ auditReport.overall_health === 'strong' ? '🟢 Overall: Strong' : auditReport.overall_health === 'moderate' ? '🟡 Overall: Moderate' : '🔴 Overall: Needs Attention' }}
           </div>
         </div>
       </div>
 
-      <p class="text-sm text-slate-700 mb-4 leading-relaxed">{{ auditReport.summary }}</p>
+      <p class="text-sm text-slate-400 mb-4 leading-relaxed">{{ auditReport.summary }}</p>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-        <AuditReportSection title="📈 Scale These" :items="auditReport.campaigns_to_scale" color="green" />
+        <AuditReportSection title="📈 Scale These" :items="auditReport.campaigns_to_scale" color="emerald" />
         <AuditReportSection title="⏸ Review / Pause" :items="auditReport.campaigns_to_pause" color="red" />
         <AuditReportSection title="🚫 Negative KW Suggestions" :items="auditReport.negative_keyword_suggestions" color="orange" />
         <AuditReportSection title="⚠️ Landing Page Issues" :items="auditReport.landing_page_issues" color="amber" />
@@ -55,22 +65,32 @@
     </div>
 
     <!-- Manual Checklist -->
-    <div v-for="(step, si) in AUDIT_STEPS" :key="si" class="bg-white border border-slate-200 rounded-xl mb-4 overflow-hidden shadow-sm">
+    <div
+      v-for="(step, si) in AUDIT_STEPS"
+      :key="si"
+      class="rounded-xl mb-4 overflow-hidden"
+      style="background:#0d1628;border:1px solid rgba(148,163,184,0.1)"
+    >
       <button
-        class="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-slate-50/50 transition-colors"
+        class="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-cyan-500/5 transition-colors"
         @click="toggleStep(si)"
       >
         <div
           class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-white"
-          :class="isStepComplete(si) ? 'bg-green-500' : 'bg-primary'"
+          :class="isStepComplete(si) ? 'bg-emerald-500' : 'bg-cyan-700'"
         >
           {{ isStepComplete(si) ? '✓' : si + 1 }}
         </div>
-        <div class="flex-1 font-semibold text-slate-800">{{ step.title }}</div>
-        <span class="text-slate-400 text-lg">{{ openSteps[si] ? '▾' : '▸' }}</span>
+        <div class="flex-1 font-semibold text-slate-200">{{ step.title }}</div>
+        <div class="text-xs text-slate-600 mr-2">{{ stepDone(si) }}/{{ step.checks.length }}</div>
+        <span class="text-slate-500 text-lg">{{ openSteps[si] ? '▾' : '▸' }}</span>
       </button>
 
-      <div v-if="openSteps[si]" class="px-5 pb-5 pl-14 space-y-3 border-t border-slate-100 pt-4">
+      <div
+        v-if="openSteps[si]"
+        class="px-5 pb-5 pl-14 space-y-3 pt-4"
+        style="border-top:1px solid rgba(148,163,184,0.07)"
+      >
         <label
           v-for="(check, ci) in step.checks"
           :key="ci"
@@ -79,11 +99,11 @@
           <input
             v-model="checklist[`${si}_${ci}`]"
             type="checkbox"
-            class="mt-0.5 w-4 h-4 accent-primary"
+            class="mt-0.5 w-4 h-4 accent-cyan-500"
           >
           <span
             class="text-sm transition-colors"
-            :class="checklist[`${si}_${ci}`] ? 'line-through text-slate-400' : 'text-slate-700'"
+            :class="checklist[`${si}_${ci}`] ? 'line-through text-slate-600' : 'text-slate-300'"
           >{{ check }}</span>
         </label>
       </div>
@@ -177,6 +197,10 @@ function isStepComplete(si: number) {
   return AUDIT_STEPS[si].checks.every((_, ci) => checklist[`${si}_${ci}`])
 }
 
+function stepDone(si: number) {
+  return AUDIT_STEPS[si].checks.filter((_, ci) => checklist[`${si}_${ci}`]).length
+}
+
 function toggleStep(si: number) {
   openSteps[si] = !openSteps[si]
 }
@@ -189,7 +213,6 @@ async function runAIAudit() {
   auditRunning.value = true
   try {
     auditReport.value = await runWeeklyAudit()
-    // Auto-check step 5
     AUDIT_STEPS[4].checks.forEach((_, ci) => { checklist[`4_${ci}`] = true })
   }
   finally {
@@ -197,7 +220,21 @@ async function runAIAudit() {
   }
 }
 
-// AuditReportSection helper component (defined inline)
+const COLOR_MAP: Record<string, string> = {
+  emerald: 'rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)',
+  red: 'rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2)',
+  orange: 'rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.2)',
+  amber: 'rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2)',
+  blue: 'rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2)',
+  slate: 'rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12)',
+  purple: 'rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2)',
+}
+
+const TEXT_MAP: Record<string, string> = {
+  emerald: 'text-emerald-400', red: 'text-red-400', orange: 'text-orange-400',
+  amber: 'text-amber-400', blue: 'text-blue-400', slate: 'text-slate-400', purple: 'text-purple-400',
+}
+
 const AuditReportSection = defineComponent({
   props: {
     title: { type: String, default: '' },
@@ -205,19 +242,15 @@ const AuditReportSection = defineComponent({
     color: { type: String, default: 'slate' },
   },
   setup(props) {
-    const colorMap: Record<string, string> = {
-      green: 'bg-green-50 border-green-200', red: 'bg-red-50 border-red-200',
-      orange: 'bg-orange-50 border-orange-200', amber: 'bg-amber-50 border-amber-200',
-      blue: 'bg-blue-50 border-blue-200', slate: 'bg-slate-50 border-slate-200',
-      purple: 'bg-purple-50 border-purple-200',
-    }
     return () => {
       if (!props.items?.length) return null
-      return h('div', { class: `rounded-xl border p-4 ${colorMap[props.color || 'slate']}` }, [
-        h('div', { class: 'font-semibold text-sm mb-2' }, props.title),
+      const bg = COLOR_MAP[props.color || 'slate']
+      const tc = TEXT_MAP[props.color || 'slate']
+      return h('div', { class: 'rounded-xl p-4', style: `background:${bg}` }, [
+        h('div', { class: `font-semibold text-sm mb-2 ${tc}` }, props.title),
         h('ul', { class: 'space-y-1' },
-          props.items?.map(item => h('li', { class: 'text-xs text-slate-700 flex gap-2' }, [
-            h('span', { class: 'text-slate-400 flex-shrink-0' }, '•'),
+          props.items?.map(item => h('li', { class: 'text-xs text-slate-400 flex gap-2' }, [
+            h('span', { class: 'text-slate-600 flex-shrink-0' }, '•'),
             item,
           ])),
         ),

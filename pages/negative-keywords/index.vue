@@ -2,18 +2,19 @@
   <div class="p-6 max-w-5xl mx-auto">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-primary">Negative Keywords</h1>
+        <h1 class="text-2xl font-bold text-cyan-400">Negative Keywords</h1>
         <p class="text-sm text-slate-500 mt-0.5">Block irrelevant searches and protect budget</p>
       </div>
       <div class="flex gap-2">
         <button
-          class="flex items-center gap-2 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-50 transition"
+          class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors text-red-400"
+          style="border:1px solid rgba(239,68,68,0.3)"
           @click="showUploadConfirm = true"
         >
           ⬆ Upload to Google Ads
         </button>
         <button
-          class="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-light transition"
+          class="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
           @click="showAddModal = true"
         >
           + Add Keyword
@@ -23,7 +24,7 @@
 
     <!-- Stats row -->
     <div class="grid grid-cols-4 gap-4 mb-6">
-      <div v-for="stat in stats" :key="stat.label" class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm text-center">
+      <div v-for="stat in stats" :key="stat.label" class="rounded-xl p-4 text-center" style="background:#0d1628;border:1px solid rgba(148,163,184,0.1)">
         <div class="text-2xl font-bold" :class="stat.color">{{ stat.value }}</div>
         <div class="text-xs text-slate-500 mt-0.5">{{ stat.label }}</div>
       </div>
@@ -31,12 +32,12 @@
 
     <!-- Filter + search -->
     <div class="flex gap-3 mb-5 flex-wrap">
-      <select v-model="filterCampaign" class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
+      <select v-model="filterCampaign" class="rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none" style="background:#070c18;border:1px solid rgba(148,163,184,0.15)">
         <option value="">All Campaigns</option>
         <option value="account">Account-Level</option>
         <option v-for="c in GOOGLE_CAMPAIGNS" :key="c.id" :value="c.name">{{ c.name }}</option>
       </select>
-      <select v-model="filterMatchType" class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
+      <select v-model="filterMatchType" class="rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none" style="background:#070c18;border:1px solid rgba(148,163,184,0.15)">
         <option value="">All Match Types</option>
         <option>Exact</option>
         <option>Phrase</option>
@@ -46,19 +47,20 @@
         v-model="filterSearch"
         type="text"
         placeholder="Search keywords..."
-        class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white w-52 focus:outline-none focus:border-primary/50"
+        class="rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 w-52 focus:outline-none"
+        style="background:#070c18;border:1px solid rgba(148,163,184,0.15)"
       >
-      <div class="ml-auto text-sm text-slate-400 self-center">{{ filteredKeywords.length }} keywords</div>
+      <div class="ml-auto text-sm text-slate-500 self-center">{{ filteredKeywords.length }} keywords</div>
     </div>
 
     <!-- Table -->
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+    <div class="rounded-xl overflow-hidden mb-6" style="background:#0d1628;border:1px solid rgba(148,163,184,0.1)">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="bg-slate-50 border-b border-slate-200">
+          <thead style="background:#080e1c;border-bottom:1px solid rgba(148,163,184,0.08)">
             <tr>
               <th class="w-8 px-4 py-3">
-                <input type="checkbox" class="accent-primary" @change="toggleAll" >
+                <input type="checkbox" @change="toggleAll">
               </th>
               <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Keyword</th>
               <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Match Type</th>
@@ -68,34 +70,34 @@
               <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Actions</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100">
+          <tbody class="divide-y divide-slate-700/30">
             <tr
               v-for="kw in filteredKeywords"
               :key="kw.id"
-              class="hover:bg-slate-50/50 transition-colors"
-              :class="{ 'bg-amber-50/30': kw.status === 'pending' }"
+              class="hover:bg-cyan-500/5 transition-colors"
+              :class="{ 'bg-amber-500/5': kw.status === 'pending' }"
             >
               <td class="px-4 py-3">
-                <input v-model="selected" type="checkbox" :value="kw.id" class="accent-primary" >
+                <input v-model="selected" type="checkbox" :value="kw.id">
               </td>
               <td class="px-4 py-3">
-                <span class="font-mono font-medium text-slate-800 bg-slate-100 px-2 py-0.5 rounded text-xs">{{ kw.keyword }}</span>
+                <span class="font-mono font-medium text-cyan-400 bg-cyan-500/8 px-2 py-0.5 rounded text-xs" style="background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.15)">{{ kw.keyword }}</span>
               </td>
               <td class="px-4 py-3">
                 <span class="text-xs font-medium" :class="matchClass(kw.match_type)">{{ kw.match_type }}</span>
               </td>
-              <td class="px-4 py-3 text-slate-600 text-sm">{{ kw.campaign || 'Account-Level' }}</td>
+              <td class="px-4 py-3 text-slate-400 text-sm">{{ kw.campaign || 'Account-Level' }}</td>
               <td class="px-4 py-3 text-slate-500 text-xs">{{ kw.reason || '—' }}</td>
               <td class="px-4 py-3 text-center">
                 <span
                   class="text-xs px-2 py-0.5 rounded-full font-medium"
-                  :class="kw.status === 'applied' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'"
+                  :class="kw.status === 'applied' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'"
                 >
                   {{ kw.status === 'applied' ? '✓ Applied' : '⏳ Pending' }}
                 </span>
               </td>
               <td class="px-4 py-3 text-right">
-                <button class="text-xs text-red-500 hover:text-red-700 hover:underline" @click="removeKeyword(kw.id)">Remove</button>
+                <button class="text-xs text-red-400 hover:text-red-300 hover:underline transition-colors" @click="removeKeyword(kw.id)">Remove</button>
               </td>
             </tr>
           </tbody>
@@ -104,52 +106,53 @@
     </div>
 
     <!-- Bulk actions -->
-    <div v-if="selected.length" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-4 z-40">
-      <span class="text-sm font-medium">{{ selected.length }} selected</span>
-      <button class="text-sm text-green-400 hover:text-green-300 font-semibold" @click="markApplied">Mark Applied</button>
-      <button class="text-sm text-red-400 hover:text-red-300 font-semibold" @click="removeSelected">Delete Selected</button>
-      <button class="text-xs text-slate-400 hover:text-white" @click="selected = []">Clear</button>
+    <div v-if="selected.length" class="fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-xl shadow-2xl flex items-center gap-4 z-40" style="background:#0d1628;border:1px solid rgba(6,182,212,0.2)">
+      <span class="text-sm font-medium text-slate-300">{{ selected.length }} selected</span>
+      <button class="text-sm text-emerald-400 hover:text-emerald-300 font-semibold transition-colors" @click="markApplied">Mark Applied</button>
+      <button class="text-sm text-red-400 hover:text-red-300 font-semibold transition-colors" @click="removeSelected">Delete Selected</button>
+      <button class="text-xs text-slate-500 hover:text-slate-300 transition-colors" @click="selected = []">Clear</button>
     </div>
 
     <!-- Upload Confirm Modal -->
-    <div v-if="showUploadConfirm" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" @click.self="showUploadConfirm = false">
-      <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-        <h3 class="font-bold text-primary text-lg mb-2">Upload Negative Keywords</h3>
-        <p class="text-sm text-slate-600 mb-2">
-          This will upload <strong>{{ pendingKeywords.length }}</strong> pending keywords to Google Ads via the MCP tool.
+    <div v-if="showUploadConfirm" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.75)" @click.self="showUploadConfirm = false">
+      <div class="rounded-2xl max-w-md w-full p-6 shadow-2xl" style="background:#0d1628;border:1px solid rgba(6,182,212,0.15)">
+        <h3 class="font-bold text-cyan-400 text-lg mb-2">Upload Negative Keywords</h3>
+        <p class="text-sm text-slate-400 mb-2">
+          This will upload <strong class="text-slate-200">{{ pendingKeywords.length }}</strong> pending keywords to Google Ads via the MCP tool.
         </p>
-        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 mb-4">
+        <div class="rounded-lg p-3 text-sm text-amber-400 mb-4" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)">
           ⚠️ This action will run in <strong>dry_run mode</strong> first. Review the preview before confirming live upload.
         </div>
-        <div class="font-mono text-xs bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4 max-h-32 overflow-y-auto">
-          <div v-for="kw in pendingKeywords.slice(0, 10)" :key="kw.id" class="text-slate-600">
+        <div class="font-mono text-xs rounded-lg p-3 mb-4 max-h-32 overflow-y-auto" style="background:#080e1c;border:1px solid rgba(148,163,184,0.1)">
+          <div v-for="kw in pendingKeywords.slice(0, 10)" :key="kw.id" class="text-slate-500">
             {{ kw.keyword }} ({{ kw.match_type }}) → {{ kw.campaign || 'Account' }}
           </div>
-          <div v-if="pendingKeywords.length > 10" class="text-slate-400">...and {{ pendingKeywords.length - 10 }} more</div>
+          <div v-if="pendingKeywords.length > 10" class="text-slate-600">...and {{ pendingKeywords.length - 10 }} more</div>
         </div>
         <div class="flex justify-end gap-2">
-          <button class="px-4 py-2 border border-slate-200 rounded-lg text-sm" @click="showUploadConfirm = false">Cancel</button>
-          <button class="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-semibold" @click="uploadDryRun">Run Dry-Run Preview</button>
+          <button class="px-4 py-2 rounded-lg text-sm text-slate-300" style="border:1px solid rgba(148,163,184,0.2)" @click="showUploadConfirm = false">Cancel</button>
+          <button class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white rounded-lg text-sm font-semibold transition" @click="uploadDryRun">Run Dry-Run Preview</button>
         </div>
       </div>
     </div>
 
     <!-- Add Keyword Modal -->
-    <div v-if="showAddModal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" @click.self="showAddModal = false">
-      <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-        <h3 class="font-bold text-primary mb-4">Add Negative Keyword</h3>
+    <div v-if="showAddModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.75)" @click.self="showAddModal = false">
+      <div class="rounded-2xl max-w-md w-full p-6 shadow-2xl" style="background:#0d1628;border:1px solid rgba(6,182,212,0.15)">
+        <h3 class="font-bold text-cyan-400 mb-4">Add Negative Keyword</h3>
         <div class="space-y-3">
           <div>
-            <label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Keyword *</label>
-            <input v-model="newKw.keyword" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" placeholder="e.g. free, jobs, salary" >
+            <label for="kw-keyword" class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Keyword *</label>
+            <input id="kw-keyword" v-model="newKw.keyword" class="w-full rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none placeholder-slate-600" style="background:#070c18;border:1px solid rgba(148,163,184,0.15)" placeholder="e.g. free, jobs, salary">
           </div>
           <div>
-            <label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Match Type</label>
+            <span class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Match Type</span>
             <div class="flex gap-2">
               <button
                 v-for="mt in ['Broad','Phrase','Exact']"
                 :key="mt"
-                :class="['flex-1 py-2 rounded-lg text-sm font-medium border transition-colors', newKw.match_type === mt ? 'bg-primary text-white border-primary' : 'border-slate-200 text-slate-600 hover:border-slate-300']"
+                :class="['flex-1 py-2 rounded-lg text-sm font-medium transition-colors', newKw.match_type === mt ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200']"
+                :style="newKw.match_type === mt ? '' : 'border:1px solid rgba(148,163,184,0.2)'"
                 @click="newKw.match_type = mt"
               >
                 {{ mt }}
@@ -157,20 +160,20 @@
             </div>
           </div>
           <div>
-            <label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Apply To</label>
-            <select v-model="newKw.campaign" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+            <label for="kw-campaign" class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Apply To</label>
+            <select id="kw-campaign" v-model="newKw.campaign" class="w-full rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none" style="background:#070c18;border:1px solid rgba(148,163,184,0.15)">
               <option value="">Account-Level (all campaigns)</option>
               <option v-for="c in GOOGLE_CAMPAIGNS" :key="c.id" :value="c.name">{{ c.name }}</option>
             </select>
           </div>
           <div>
-            <label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Reason</label>
-            <input v-model="newKw.reason" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" placeholder="Why are we blocking this?" >
+            <label for="kw-reason" class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Reason</label>
+            <input id="kw-reason" v-model="newKw.reason" class="w-full rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none placeholder-slate-600" style="background:#070c18;border:1px solid rgba(148,163,184,0.15)" placeholder="Why are we blocking this?">
           </div>
         </div>
         <div class="flex justify-end gap-2 mt-5">
-          <button class="px-4 py-2 border border-slate-200 rounded-lg text-sm" @click="showAddModal = false">Cancel</button>
-          <button class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold" @click="addKeyword">Add Keyword</button>
+          <button class="px-4 py-2 rounded-lg text-sm text-slate-300 transition-colors" style="border:1px solid rgba(148,163,184,0.2)" @click="showAddModal = false">Cancel</button>
+          <button class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-semibold transition" @click="addKeyword">Add Keyword</button>
         </div>
       </div>
     </div>
@@ -217,14 +220,14 @@ const filteredKeywords = computed(() => {
 const pendingKeywords = computed(() => keywords.value.filter(k => k.status === 'pending'))
 
 const stats = computed(() => [
-  { label: 'Total Negatives', value: keywords.value.length, color: 'text-primary' },
-  { label: 'Applied', value: keywords.value.filter(k => k.status === 'applied').length, color: 'text-green-600' },
-  { label: 'Pending Upload', value: pendingKeywords.value.length, color: 'text-amber-600' },
-  { label: 'Account-Level', value: keywords.value.filter(k => !k.campaign).length, color: 'text-slate-700' },
+  { label: 'Total Negatives', value: keywords.value.length, color: 'text-cyan-400' },
+  { label: 'Applied', value: keywords.value.filter(k => k.status === 'applied').length, color: 'text-emerald-400' },
+  { label: 'Pending Upload', value: pendingKeywords.value.length, color: 'text-amber-400' },
+  { label: 'Account-Level', value: keywords.value.filter(k => !k.campaign).length, color: 'text-slate-300' },
 ])
 
 function matchClass(mt: string) {
-  return mt === 'Exact' ? 'text-purple-600' : mt === 'Phrase' ? 'text-blue-600' : 'text-slate-600'
+  return mt === 'Exact' ? 'text-purple-400' : mt === 'Phrase' ? 'text-blue-400' : 'text-slate-400'
 }
 
 function addKeyword() {

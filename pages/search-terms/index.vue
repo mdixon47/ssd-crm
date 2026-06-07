@@ -2,20 +2,21 @@
   <div class="p-6 max-w-6xl mx-auto">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-primary">Search Terms</h1>
+        <h1 class="text-2xl font-bold text-cyan-400">Search Terms</h1>
         <p class="text-sm text-slate-500 mt-0.5">Label, triage, and act on Google Ads search queries</p>
       </div>
       <div class="flex gap-2">
         <button
           :disabled="labeling"
-          class="flex items-center gap-2 bg-accent text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-500 transition disabled:opacity-50"
+          class="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50"
           @click="runAILabel"
         >
           <span>✨</span>
           {{ labeling ? 'Labeling...' : 'AI Auto-Label' }}
         </button>
         <button
-          class="flex items-center gap-2 border border-slate-200 px-4 py-2 rounded-lg text-sm hover:border-slate-300"
+          class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-slate-100 transition-colors"
+          style="border:1px solid rgba(148,163,184,0.2)"
           @click="showAddModal = true"
         >
           + Add Term
@@ -28,33 +29,35 @@
       <button
         v-for="f in LABEL_FILTERS"
         :key="f.value"
-        :class="['text-sm px-3 py-1.5 rounded-full font-medium transition-colors border', filterLabel === f.value ? f.activeClass : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300']"
+        :class="['text-sm px-3 py-1.5 rounded-full font-medium transition-colors', filterLabel === f.value ? f.activeClass : 'text-slate-400 hover:text-slate-200']"
+        :style="filterLabel === f.value ? '' : 'background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12)'"
         @click="filterLabel = filterLabel === f.value ? '' : f.value"
       >
         {{ f.icon }} {{ f.label }}
-        <span class="ml-1 opacity-70">({{ countByLabel(f.value) }})</span>
+        <span class="ml-1 opacity-60">({{ countByLabel(f.value) }})</span>
       </button>
       <input
         v-model="filterSearch"
         type="text"
         placeholder="Filter terms..."
-        class="ml-auto border border-slate-200 rounded-full px-3 py-1.5 text-sm focus:outline-none focus:border-primary/50 w-44"
+        class="ml-auto rounded-full px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none w-44"
+        style="background:#070c18;border:1px solid rgba(148,163,184,0.15)"
       >
     </div>
 
     <!-- AI results banner -->
-    <div v-if="aiLabelResult" class="mb-5 bg-green-50 border border-green-200 rounded-xl p-4">
-      <div class="flex items-center gap-2 mb-2">
-        <span class="text-green-600 font-bold text-sm">✅ AI labeled {{ aiLabelResult.high }} terms with high confidence, {{ aiLabelResult.applied }} applied automatically</span>
+    <div v-if="aiLabelResult" class="mb-5 rounded-xl p-4" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-emerald-400 font-bold text-sm">✅ AI labeled {{ aiLabelResult.high }} terms with high confidence, {{ aiLabelResult.applied }} applied automatically</span>
       </div>
-      <p class="text-xs text-green-700">Medium/low confidence terms are shown with suggestions — review and approve each one manually.</p>
+      <p class="text-xs text-slate-400">Medium/low confidence terms are shown with suggestions — review and approve each one manually.</p>
     </div>
 
     <!-- Table -->
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="rounded-xl overflow-hidden" style="background:#0d1628;border:1px solid rgba(148,163,184,0.1)">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="bg-slate-50 border-b border-slate-200">
+          <thead style="background:#080e1c;border-bottom:1px solid rgba(148,163,184,0.08)">
             <tr>
               <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Search Term</th>
               <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Campaign</th>
@@ -66,24 +69,24 @@
               <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500">Actions</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100">
+          <tbody class="divide-y divide-slate-700/30">
             <tr
               v-for="term in filteredTerms"
               :key="term.term"
-              class="hover:bg-slate-50/50 transition-colors"
+              class="hover:bg-cyan-500/5 transition-colors"
             >
-              <td class="px-4 py-3 font-medium text-slate-800">{{ term.term }}</td>
+              <td class="px-4 py-3 font-medium text-slate-200">{{ term.term }}</td>
               <td class="px-4 py-3 text-slate-500 text-xs">{{ term.campaign }}</td>
-              <td class="px-4 py-3 text-right text-slate-600">{{ term.impressions.toLocaleString() }}</td>
-              <td class="px-4 py-3 text-right text-slate-600">{{ term.clicks }}</td>
-              <td class="px-4 py-3 text-right font-semibold" :class="term.conversions > 0 ? 'text-green-600' : 'text-slate-400'">{{ term.conversions }}</td>
-              <td class="px-4 py-3 text-right text-slate-600">${{ term.cost }}</td>
+              <td class="px-4 py-3 text-right text-slate-400">{{ term.impressions.toLocaleString() }}</td>
+              <td class="px-4 py-3 text-right text-slate-400">{{ term.clicks }}</td>
+              <td class="px-4 py-3 text-right font-semibold" :class="term.conversions > 0 ? 'text-emerald-400' : 'text-slate-600'">{{ term.conversions }}</td>
+              <td class="px-4 py-3 text-right text-slate-400">${{ term.cost }}</td>
               <td class="px-4 py-3 text-center">
                 <div v-if="editingLabel === term.term" class="flex gap-1 justify-center flex-wrap">
                   <button
                     v-for="l in LABELS"
                     :key="l.value"
-                    :class="['text-xs px-2 py-0.5 rounded-full font-medium border transition-colors', l.class]"
+                    :class="['text-xs px-2 py-0.5 rounded-full font-medium transition-colors', l.class]"
                     @click="applyLabel(term, l.value); editingLabel = ''"
                   >
                     {{ l.icon }} {{ l.label }}
@@ -100,14 +103,14 @@
               <td class="px-4 py-3 text-right">
                 <button
                   v-if="term.label === 'negative'"
-                  class="text-xs text-red-600 hover:underline font-medium"
+                  class="text-xs text-red-400 hover:underline font-medium"
                   @click="addToNegatives(term.term)"
                 >
                   → Add Negative
                 </button>
                 <button
                   v-else
-                  class="text-xs text-slate-400 hover:text-primary hover:underline"
+                  class="text-xs text-slate-500 hover:text-cyan-400 hover:underline transition-colors"
                   @click="editingLabel = term.term"
                 >
                   Label
@@ -120,29 +123,29 @@
     </div>
 
     <!-- Add Term Modal -->
-    <div v-if="showAddModal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" @click.self="showAddModal = false">
-      <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
-        <h3 class="font-bold text-primary mb-4">Add Search Term</h3>
+    <div v-if="showAddModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.75)" @click.self="showAddModal = false">
+      <div class="rounded-2xl w-full max-w-md p-6 shadow-2xl" style="background:#0d1628;border:1px solid rgba(6,182,212,0.15)">
+        <h3 class="font-bold text-cyan-400 mb-4">Add Search Term</h3>
         <div class="space-y-3">
           <div>
-            <label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Search Term *</label>
-            <input v-model="newTerm.term" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50" >
+            <label for="term-name" class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Search Term *</label>
+            <input id="term-name" v-model="newTerm.term" class="w-full rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none" style="background:#070c18;border:1px solid rgba(148,163,184,0.15)">
           </div>
           <div>
-            <label class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Campaign</label>
-            <select v-model="newTerm.campaign" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+            <label for="term-campaign" class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Campaign</label>
+            <select id="term-campaign" v-model="newTerm.campaign" class="w-full rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none" style="background:#070c18;border:1px solid rgba(148,163,184,0.15)">
               <option v-for="c in GOOGLE_CAMPAIGNS" :key="c.id" :value="c.name">{{ c.name }}</option>
             </select>
           </div>
           <div class="grid grid-cols-3 gap-2">
-            <div><label class="text-xs font-semibold text-slate-500 block mb-1.5">Impressions</label><input v-model.number="newTerm.impressions" type="number" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" ></div>
-            <div><label class="text-xs font-semibold text-slate-500 block mb-1.5">Clicks</label><input v-model.number="newTerm.clicks" type="number" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" ></div>
-            <div><label class="text-xs font-semibold text-slate-500 block mb-1.5">Cost ($)</label><input v-model.number="newTerm.cost" type="number" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" ></div>
+            <div><label for="term-impr" class="text-xs font-semibold text-slate-500 block mb-1.5">Impressions</label><input id="term-impr" v-model.number="newTerm.impressions" type="number" class="w-full rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none" style="background:#070c18;border:1px solid rgba(148,163,184,0.15)"></div>
+            <div><label for="term-clicks" class="text-xs font-semibold text-slate-500 block mb-1.5">Clicks</label><input id="term-clicks" v-model.number="newTerm.clicks" type="number" class="w-full rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none" style="background:#070c18;border:1px solid rgba(148,163,184,0.15)"></div>
+            <div><label for="term-cost" class="text-xs font-semibold text-slate-500 block mb-1.5">Cost ($)</label><input id="term-cost" v-model.number="newTerm.cost" type="number" class="w-full rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none" style="background:#070c18;border:1px solid rgba(148,163,184,0.15)"></div>
           </div>
         </div>
         <div class="flex justify-end gap-2 mt-5">
-          <button class="px-4 py-2 border border-slate-200 rounded-lg text-sm" @click="showAddModal = false">Cancel</button>
-          <button class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold" @click="addNewTerm">Add Term</button>
+          <button class="px-4 py-2 rounded-lg text-sm text-slate-300 transition-colors" style="border:1px solid rgba(148,163,184,0.2)" @click="showAddModal = false">Cancel</button>
+          <button class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-semibold transition" @click="addNewTerm">Add Term</button>
         </div>
       </div>
     </div>
@@ -167,20 +170,20 @@ const aiLabelResult = ref<{ high: number; applied: number } | null>(null)
 const newTerm = reactive({ term: '', campaign: '', impressions: 0, clicks: 0, cost: 0, conversions: 0, label: '' as string })
 
 const LABELS = [
-  { value: 'keep', label: 'Keep', icon: '✅', class: 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' },
-  { value: 'watch', label: 'Watch', icon: '👁', class: 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100' },
-  { value: 'negative', label: 'Negative', icon: '🚫', class: 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100' },
-  { value: 'build_page', label: 'Build Page', icon: '📄', class: 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100' },
-  { value: 'new_campaign', label: 'New Campaign', icon: '🚀', class: 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' },
+  { value: 'keep', label: 'Keep', icon: '✅', class: 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25' },
+  { value: 'watch', label: 'Watch', icon: '👁', class: 'bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25' },
+  { value: 'negative', label: 'Negative', icon: '🚫', class: 'bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25' },
+  { value: 'build_page', label: 'Build Page', icon: '📄', class: 'bg-purple-500/15 border border-purple-500/30 text-purple-400 hover:bg-purple-500/25' },
+  { value: 'new_campaign', label: 'New Campaign', icon: '🚀', class: 'bg-amber-500/15 border border-amber-500/30 text-amber-400 hover:bg-amber-500/25' },
 ]
 
 const LABEL_FILTERS = [
-  { value: 'keep', label: 'Keep', icon: '✅', activeClass: 'bg-green-100 border-green-400 text-green-700' },
-  { value: 'watch', label: 'Watch', icon: '👁', activeClass: 'bg-blue-100 border-blue-400 text-blue-700' },
-  { value: 'negative', label: 'Negative', icon: '🚫', activeClass: 'bg-red-100 border-red-400 text-red-700' },
-  { value: 'build_page', label: 'Build Page', icon: '📄', activeClass: 'bg-purple-100 border-purple-400 text-purple-700' },
-  { value: 'new_campaign', label: 'New Campaign', icon: '🚀', activeClass: 'bg-amber-100 border-amber-400 text-amber-700' },
-  { value: '', label: 'Unlabeled', icon: '⭕', activeClass: 'bg-slate-200 border-slate-400 text-slate-700' },
+  { value: 'keep', label: 'Keep', icon: '✅', activeClass: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' },
+  { value: 'watch', label: 'Watch', icon: '👁', activeClass: 'bg-blue-500/20 text-blue-400 border border-blue-500/40' },
+  { value: 'negative', label: 'Negative', icon: '🚫', activeClass: 'bg-red-500/20 text-red-400 border border-red-500/40' },
+  { value: 'build_page', label: 'Build Page', icon: '📄', activeClass: 'bg-purple-500/20 text-purple-400 border border-purple-500/40' },
+  { value: 'new_campaign', label: 'New Campaign', icon: '🚀', activeClass: 'bg-amber-500/20 text-amber-400 border border-amber-500/40' },
+  { value: '', label: 'Unlabeled', icon: '⭕', activeClass: 'bg-slate-500/20 text-slate-300 border border-slate-500/40' },
 ]
 
 const filteredTerms = computed(() => {
@@ -197,11 +200,11 @@ function countByLabel(label: string) {
 
 function labelClass(label: string) {
   const map: Record<string, string> = {
-    keep: 'bg-green-100 text-green-700', watch: 'bg-blue-100 text-blue-700',
-    negative: 'bg-red-100 text-red-700', build_page: 'bg-purple-100 text-purple-700',
-    new_campaign: 'bg-amber-100 text-amber-700',
+    keep: 'bg-emerald-500/15 text-emerald-400', watch: 'bg-blue-500/15 text-blue-400',
+    negative: 'bg-red-500/15 text-red-400', build_page: 'bg-purple-500/15 text-purple-400',
+    new_campaign: 'bg-amber-500/15 text-amber-400',
   }
-  return map[label] ?? 'bg-slate-100 text-slate-500'
+  return map[label] ?? 'bg-slate-500/15 text-slate-500'
 }
 
 function labelIcon(label: string) {
