@@ -5,6 +5,37 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-07 (Neural Dark futuristic theme)
+
+### Application-wide "Neural Dark" redesign
+
+Redesigned the entire CRM with a futuristic dark theme across all pages, layouts, and components.
+
+**Design tokens:**
+- Background: `#060c18` (global body), `#0d1628` (cards), `#080e1c` (sub-surfaces/table headers), `#070c18` (inputs)
+- Primary accent: cyan (`#06b6d4` / `text-cyan-400`, `bg-cyan-600` buttons)
+- Borders: `rgba(148,163,184,0.1)` (cards), `rgba(148,163,184,0.15)` (inputs), `rgba(6,182,212,0.15)` (modal panels)
+- Neon badges: emerald/amber/red/blue/purple at `*/15` opacity backgrounds
+- Row hover: `hover:bg-cyan-500/5`; dividers: `divide-slate-700/30`
+
+**Files updated (14):**
+- `nuxt.config.ts` — Tailwind color tokens (`primary` → dark surface, `accent` → cyan)
+- `app.vue` — global dark body/scrollbar/selection CSS
+- `layouts/default.vue` — dark left sidebar, cyan active nav indicator
+- `components/ai/AIPanel.vue` — dark panel with cyan header
+- `components/leads/LeadModal.vue` — dark modal, cyan tabs
+- `components/leads/EmailComposer.vue` — dark compose form + history cards
+- `pages/index.vue` — dark KPI cards, dark Chart.js config, dark campaign table
+- `pages/leads/index.vue` — dark kanban pipeline, dark list table, neon stage badges
+- `pages/leads/add.vue` — dark form inputs/selects, accessibility label fixes
+- `pages/campaigns/index.vue` — dark campaign cards, dark keyword table, cyan tab switcher
+- `pages/search-terms/index.vue` — dark table, neon filter pills, dark modal
+- `pages/negative-keywords/index.vue` — dark table, dark stat cards, dark modals
+- `pages/weekly-audit/index.vue` — dark checklist cards, dark AI report sections, cyan progress bar
+- `pages/social/index.vue` — dark KPI cards, dark campaign grid, dark content tracker table
+
+---
+
 ## 2026-06-07 (email feature)
 
 ### Customer email composer + AI email agent
