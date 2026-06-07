@@ -7,7 +7,7 @@
     "dev": "TMPDIR=/tmp nuxt dev",
     "build": "nuxt build",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare",
+    "postinstall": "node -e \"if(!process.env.CI)require('child_process').execSync('nuxt prepare',{stdio:'inherit'})\"",
     "lint": "eslint .",
     "typecheck": "NODE_OPTIONS='--max-old-space-size=8192' nuxt typecheck"
   },

@@ -3,7 +3,7 @@
 # and the static client bundle to `dist`. No `@netlify/plugin-nuxt` required.
 
 [build]
-  command = "npm run build"
+  command = "npx nuxt prepare && npm run build"
   publish = "dist"
 
 [build.environment]
