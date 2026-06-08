@@ -121,17 +121,8 @@ No test framework is wired up. Recommended scope for a first pass:
 ### 16. `punycode` deprecation warning on startup
 `DEP0040: The punycode module is deprecated.` Emitted from a transitive dep (likely `whatwg-url`). Cosmetic — no action needed until Node removes the module.
 
-### 17. zod v4 upgrade deferred (Dependabot PR #6 closed 2026-06-08)
-Dependabot opened a `zod 3.25.76 → 4.4.3` PR. v4 is a substantial rewrite (new internal API, stricter inference, reworked error format). Only `server/utils/leadSchema.ts` consumes zod today, but full validation requires `npm run typecheck` to be green — currently blocked by #5 above. PR closed with `@dependabot ignore this major version` to stop weekly re-opens. **Exit criteria**: clear #5, then `@dependabot unignore zod`, re-evaluate, update `LeadInsertSchema` if v4 inference rejects current shape.
-
-### 18. Dev-tooling majors must land individually (Dependabot PR #8 closed 2026-06-08)
-Dependabot's `dev-tooling` group bundled four simultaneous majors (`@types/node 22→25`, `typescript 5→6`, `eslint 9→10`, `@nuxt/eslint 0.7→1.15`). Independent blockers per package:
-- `@types/node@25` violates `engines.node: ">=22.0.0 <25"` — bump engine range first or stay on 22/24.
-- `typescript@6` needs `vue-tsc` 2.x compatibility verified and clean baseline from #5.
-- `eslint@10` requires coordinated upgrade with `@nuxt/eslint-config` (pinned `^0.7.6` and not in the group PR).
-- `@nuxt/eslint@1.x` is a 0.x→1.x with module-config-shape changes (would touch `eslint.config.mjs`).
-
-**Mitigation in place**: `.github/dependabot.yml` `dev-tooling` group now restricted to `minor + patch` via `update-types`. Future majors arrive as individual ungrouped PRs that can be triaged one at a time. No permanent ignores added — each will reappear at the next weekly run.
+### 17. zod v4 upgrade — eligible to attempt (Dependabot PR #6 closed 2026-06-08)
+The 2026-06-08 baseline-fix (see `update.md`) unblocks v4 evaluation. Source-level migration is required, not just a version bump: `z.string().email()` → `z.email()` (5 sites), `z.string().uuid()` → `z.uuid()` (1 site), and any reader of `ZodError.errors` must move to `.issues`. Affected files: `server/api/{email/draft,email/send,leads/index,ai/email-strategy,ai/social-strategy}.post.ts` and `server/mcp/*/index.ts`. **Exit criteria**: unignore via Dependabot or bump locally, apply renames, run `npm run typecheck` + `npm run build`, decide whether to keep the `overrides.zod` pin (the MCP SDK ships v4 natively, so the override likely becomes unnecessary).
 
 ---
 

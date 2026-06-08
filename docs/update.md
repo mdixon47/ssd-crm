@@ -5,6 +5,28 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-08 (Dev-tooling majors bundle landed — `issues.md #18` resolved)
+
+With the type baseline clean and CI typecheck blocking, the deferred dev-tooling majors were verified together (`lint`, `vue-tsc --noEmit`, `npm run build` all green with **zero source changes**) and landed as one atomic bump.
+
+Versions:
+
+| Package | From | To |
+|---|---|---|
+| `typescript` | 5.8.2 | 6.0.3 |
+| `vue-tsc` | 2.2.12 | 3.3.3 |
+| `@pinia/nuxt` | 0.10.1 | 0.11.3 |
+| `eslint` | 9.39.4 | 10.4.1 |
+| `@nuxt/eslint` | 0.7.4 | 1.15.2 |
+| `@nuxt/eslint-config` | 0.7.6 | 1.15.2 |
+| `@types/node` | 22.13.10 | 24.x |
+
+`@types/node` capped at 24 to honour `engines.node: ">=22.0.0 <25"`. The group is intentionally atomic — TS 6 needs vue-tsc 3, and eslint 10 needs `@nuxt/eslint@1.15+` which relaxes the peer-dep range. Dependabot PRs `#9`, `#10`, `#13`, `#14`, `#15`, `#16` superseded.
+
+`issues.md #18` removed. `#17` (zod v4) updated with the concrete migration steps now that the path is clear.
+
+---
+
 ## 2026-06-08 (CI typecheck is now blocking)
 
 Now that `npm run typecheck` reports 0 errors (see the entry below), the `.github/workflows/ci.yml` `typecheck` job:
