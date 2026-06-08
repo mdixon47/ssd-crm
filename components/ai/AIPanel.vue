@@ -62,22 +62,38 @@
     </div>
 
     <!-- AI Actions Bar -->
-    <div class="px-3 py-2 flex gap-2" style="border-top:1px solid rgba(148,163,184,0.06);background:#080e1c">
+    <div class="px-3 py-2 grid grid-cols-2 gap-2" style="border-top:1px solid rgba(148,163,184,0.06);background:#080e1c">
       <button
         :disabled="agentLoading"
-        class="flex-1 text-xs font-semibold py-1.5 rounded-md transition-colors disabled:opacity-50 text-amber-400"
+        class="text-xs font-semibold py-1.5 rounded-md transition-colors disabled:opacity-50 text-amber-400"
         style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)"
         @click="runAudit"
       >
-        {{ agentLoading ? '⏳ Running...' : '🔍 Run Weekly Audit' }}
+        {{ agentLoading ? '⏳ Running...' : '🔍 Weekly Audit' }}
       </button>
       <button
         :disabled="agentLoading"
-        class="flex-1 text-xs font-semibold py-1.5 rounded-md transition-colors disabled:opacity-50 text-cyan-400"
+        class="text-xs font-semibold py-1.5 rounded-md transition-colors disabled:opacity-50 text-cyan-400"
         style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2)"
         @click="analyzeCampaigns"
       >
         📊 Analyze Campaigns
+      </button>
+      <button
+        :disabled="agentLoading"
+        class="text-xs font-semibold py-1.5 rounded-md transition-colors disabled:opacity-50 text-emerald-400"
+        style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)"
+        @click="planEmails"
+      >
+        ✉️ Plan Outreach
+      </button>
+      <button
+        :disabled="agentLoading"
+        class="text-xs font-semibold py-1.5 rounded-md transition-colors disabled:opacity-50 text-purple-400"
+        style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2)"
+        @click="planSocial"
+      >
+        📱 Social Strategy
       </button>
     </div>
 
@@ -112,7 +128,7 @@ import { useAI } from '~/composables/useAI'
 
 defineEmits<{ close: [] }>()
 
-const { messages, loading: aiLoading, chat, analyzeCampaigns: runAnalysis, runWeeklyAudit, clearMessages } = useAI()
+const { messages, loading: aiLoading, chat, analyzeCampaigns: runAnalysis, runWeeklyAudit, runEmailStrategy, runSocialStrategy, clearMessages } = useAI()
 
 const inputText = ref('')
 const agentLoading = ref(false)
@@ -162,6 +178,40 @@ async function analyzeCampaigns() {
     const result = await runAnalysis()
     if (result && result.summary) {
       await chat(`Campaign analysis complete. ${result.summary as string}`)
+      await nextTick()
+      scrollToBottom()
+    }
+  }
+  finally {
+    agentLoading.value = false
+  }
+}
+
+async function planEmails() {
+  agentLoading.value = true
+  try {
+    const result = await runEmailStrategy()
+    if (result) {
+      const headline = `Outreach plan ready — ${result.suggestions.length} suggested email${result.suggestions.length === 1 ? '' : 's'}.`
+      const detail = result.suggestions.slice(0, 5).map(s => `• [${s.priority}] ${s.lead_name}${s.lead_org ? ` (${s.lead_org})` : ''} — ${s.reason}`).join('\n')
+      await chat(`${headline}\n${detail}\n\n${result.summary}\n\nOpen the Leads page to review and send.`)
+      await nextTick()
+      scrollToBottom()
+    }
+  }
+  finally {
+    agentLoading.value = false
+  }
+}
+
+async function planSocial() {
+  agentLoading.value = true
+  try {
+    // Default to Facebook from the panel; the social page has per-platform buttons.
+    const result = await runSocialStrategy('fb')
+    if (result) {
+      const recs = result.recommendations.slice(0, 4).map(r => `• [${r.priority}] (${r.area}) ${r.action}`).join('\n')
+      await chat(`Facebook strategy — health: **${result.health}**.\n${recs}\n\n${result.summary}\n\nOpen the Social page for per-platform breakdowns.`)
       await nextTick()
       scrollToBottom()
     }

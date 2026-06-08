@@ -5,6 +5,32 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-08 (Email + Social Strategist agents)
+
+### Two new strategic agents
+
+Added `EmailStrategistAgent` (batch outreach planner) and `SocialMediaAgent` (platform-level performance analyst). Both follow the existing agentic-loop pattern (Opus for reasoning, Sonnet for JSON finalization, read-only tools, max-iteration guard).
+
+**New files:**
+- `agents/EmailStrategistAgent.ts` — picks priority leads (dormant / proposal follow-ups / stage nudges) and drafts subject + body per lead. 4 tools, MAX_ITERATIONS=10.
+- `agents/SocialMediaAgent.ts` — analyzes one platform (`fb`/`ig`/`li`), returns health rating, prioritized recommendations, fresh post ideas, scale/pause candidates. 4 tools, MAX_ITERATIONS=8.
+- `server/api/ai/email-strategy.post.ts` — `POST { maxRecipients?, focus? }`.
+- `server/api/ai/social-strategy.post.ts` — `POST { platform: 'fb'|'ig'|'li' }`.
+- `docs/live-data.md` — instructions for swapping mock data sources (Google Ads, Meta, LinkedIn, Resend webhooks) with live APIs.
+
+**Modified:**
+- `types/index.ts` — added `EmailOutreachSuggestion`, `EmailStrategyOutput`, `SocialRecommendation`, `SocialPostIdea`, `SocialStrategyOutput`; extended `AgentType` with `email_drafter`, `email_strategist`, `social_strategist`.
+- `composables/useAI.ts` — added `runEmailStrategy()` / `runSocialStrategy()` plus `lastEmailStrategy` / `lastSocialStrategy` caches.
+- `components/ai/AIPanel.vue` — actions reorganized into a 2×2 grid with **✉️ Plan Outreach** and **📱 Social Strategy** buttons.
+- `pages/leads/index.vue` — new **AI Email Strategist** card above the pipeline (suggestions with expandable drafts, Open-lead handoff).
+- `pages/social/index.vue` — new **AI Social Strategist** card with per-platform output caching.
+
+**Data sources (current):** Email strategist reads real Supabase `leads`. Social strategist reads `SOCIAL_PLATFORMS` from `lib/mockData.ts` — see `docs/live-data.md` for the Meta/LinkedIn wire-up.
+
+**Verification:** `npm run lint` clean; `npm run build` succeeds; both endpoints emitted as Nitro functions. No new IDE diagnostics.
+
+---
+
 ## 2026-06-07 (lockfile-less builds)
 
 ### `package-lock.json` removed from version control

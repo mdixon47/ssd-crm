@@ -21,6 +21,84 @@
     </div>
 
     <div v-if="platform">
+      <!-- AI Strategist -->
+      <div class="rounded-xl p-5 mb-6" style="background:#0d1628;border:1px solid rgba(168,85,247,0.2)">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">✨</span>
+            <h2 class="font-semibold text-slate-100">AI Social Strategist</h2>
+            <span v-if="strategy?.health" :class="healthBadgeClass(strategy.health)" class="text-xs px-2 py-0.5 rounded-full font-semibold">
+              {{ strategy.health.replace('_', ' ') }}
+            </span>
+          </div>
+          <button
+            class="text-xs font-semibold py-1.5 px-3 rounded-md transition-colors disabled:opacity-50 text-purple-300"
+            style="background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.3)"
+            :disabled="strategyLoading"
+            @click="loadStrategy"
+          >
+            {{ strategyLoading ? '⏳ Analyzing...' : strategy ? '↻ Re-run' : 'Run strategy' }}
+          </button>
+        </div>
+
+        <p v-if="!strategy && !strategyLoading && !strategyError" class="text-sm text-slate-500">
+          Generate platform-specific recommendations, post ideas, and scale/pause candidates for {{ PLATFORMS.find(p => p.key === activePlatform)?.name }}.
+        </p>
+        <p v-if="strategyError" class="text-sm text-red-400">{{ strategyError }}</p>
+
+        <div v-if="strategy" class="space-y-4">
+          <p class="text-sm text-slate-300 leading-relaxed">{{ strategy.summary }}</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div v-if="strategy.recommendations.length">
+              <div class="text-xs font-semibold text-slate-500 uppercase mb-2">Recommendations</div>
+              <ul class="space-y-2">
+                <li v-for="(r, i) in strategy.recommendations" :key="i" class="text-sm rounded-lg p-3" style="background:#080e1c;border:1px solid rgba(148,163,184,0.08)">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span :class="priorityBadgeClass(r.priority)" class="text-xs px-2 py-0.5 rounded-full font-semibold">{{ r.priority }}</span>
+                    <span class="text-xs text-slate-500 uppercase">{{ r.area }}</span>
+                  </div>
+                  <div class="text-slate-200 font-medium">{{ r.action }}</div>
+                  <div class="text-xs text-slate-500 mt-1">{{ r.rationale }}</div>
+                </li>
+              </ul>
+            </div>
+
+            <div v-if="strategy.post_ideas.length">
+              <div class="text-xs font-semibold text-slate-500 uppercase mb-2">Post Ideas</div>
+              <ul class="space-y-2">
+                <li v-for="(p, i) in strategy.post_ideas" :key="i" class="text-sm rounded-lg p-3" style="background:#080e1c;border:1px solid rgba(148,163,184,0.08)">
+                  <div class="flex items-center justify-between gap-2 mb-1">
+                    <div class="text-slate-200 font-medium">{{ p.title }}</div>
+                    <span class="text-xs text-slate-500 px-2 py-0.5 rounded-full flex-shrink-0" style="background:rgba(148,163,184,0.08)">{{ p.format }}</span>
+                  </div>
+                  <div class="text-xs text-cyan-400 italic">"{{ p.hook }}"</div>
+                  <div class="text-xs text-slate-500 mt-1"><span class="text-slate-600">Audience:</span> {{ p.audience }}</div>
+                  <div class="text-xs text-slate-500"><span class="text-slate-600">CTA:</span> {{ p.cta }}</div>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div v-if="strategy.scale_candidates.length || strategy.pause_candidates.length" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div v-if="strategy.scale_candidates.length" class="rounded-lg p-3" style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.15)">
+              <div class="text-xs font-semibold text-emerald-400 uppercase mb-1.5">Scale ↑</div>
+              <ul class="text-sm text-slate-300 space-y-1">
+                <li v-for="(s, i) in strategy.scale_candidates" :key="i">• {{ s }}</li>
+              </ul>
+            </div>
+            <div v-if="strategy.pause_candidates.length" class="rounded-lg p-3" style="background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.15)">
+              <div class="text-xs font-semibold text-red-400 uppercase mb-1.5">Pause / Review</div>
+              <ul class="text-sm text-slate-300 space-y-1">
+                <li v-for="(s, i) in strategy.pause_candidates" :key="i">• {{ s }}</li>
+              </ul>
+            </div>
+          </div>
+
+          <p class="text-xs text-slate-600 italic">Recommendations only — all platform changes require human approval.</p>
+        </div>
+      </div>
+
       <!-- KPIs -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div class="rounded-xl p-4" style="background:#0d1628;border:1px solid rgba(148,163,184,0.1)">
@@ -229,15 +307,16 @@
 
 <script setup lang="ts">
 import { SOCIAL_PLATFORMS } from '~/lib/mockData'
-import type { SocialPlatformData } from '~/types'
+import type { SocialPlatformData, SocialStrategyOutput } from '~/types'
+import { useAI } from '~/composables/useAI'
 
 const PLATFORMS = [
   { key: 'fb', name: 'Facebook', icon: '📘' },
   { key: 'ig', name: 'Instagram', icon: '📸' },
   { key: 'li', name: 'LinkedIn', icon: '💼' },
-]
+] as const
 
-const activePlatform = ref('fb')
+const activePlatform = ref<'fb' | 'ig' | 'li'>('fb')
 const showAddPost = ref(false)
 const newPost = reactive({ title: '', format: '', status: 'draft' as const, publish_date: new Date().toISOString().slice(0, 10) })
 
@@ -246,6 +325,34 @@ const totalSpend = computed(() => platform.value?.campaigns.reduce((s, c) => s +
 const totalLeads = computed(() => platform.value?.campaigns.reduce((s, c) => s + c.leads, 0) ?? 0)
 const totalRevenue = computed(() => platform.value?.campaigns.reduce((s, c) => s + c.revenue, 0) ?? 0)
 const platformRoas = computed(() => totalSpend.value > 0 ? totalRevenue.value / totalSpend.value : 0)
+
+// AI Social Strategist — per-platform output cached locally
+const { runSocialStrategy, error: aiError } = useAI()
+const strategyByPlatform = reactive<Record<string, SocialStrategyOutput | null>>({ fb: null, ig: null, li: null })
+const strategyLoading = ref(false)
+const strategyError = ref<string | null>(null)
+const strategy = computed(() => strategyByPlatform[activePlatform.value])
+
+async function loadStrategy() {
+  strategyLoading.value = true
+  strategyError.value = null
+  try {
+    const result = await runSocialStrategy(activePlatform.value)
+    if (result) strategyByPlatform[activePlatform.value] = result
+    else strategyError.value = aiError.value ?? 'Strategy run failed'
+  }
+  finally {
+    strategyLoading.value = false
+  }
+}
+
+function priorityBadgeClass(p: 'high' | 'medium' | 'low') {
+  return p === 'high' ? 'bg-red-500/15 text-red-400' : p === 'medium' ? 'bg-amber-500/15 text-amber-400' : 'bg-slate-500/15 text-slate-400'
+}
+
+function healthBadgeClass(h: 'strong' | 'moderate' | 'needs_attention') {
+  return h === 'strong' ? 'bg-emerald-500/15 text-emerald-400' : h === 'moderate' ? 'bg-amber-500/15 text-amber-400' : 'bg-red-500/15 text-red-400'
+}
 
 function addPost() {
   if (!newPost.title.trim() || !platform.value) return

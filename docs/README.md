@@ -60,8 +60,13 @@ All four agents live in `agents/` and are pure functions taking an `Anthropic` c
 |-------|-----------|-------|
 | `CampaignOptimizerAgent` | Tool-use loop (max 10) | `claude-opus-4-6` |
 | `WeeklyAuditAgent` | Tool-use loop (max 12) | `claude-opus-4-6` → `claude-sonnet-4-6` for JSON |
+| `EmailStrategistAgent` | Tool-use loop (max 10) | `claude-opus-4-6` → `claude-sonnet-4-6` for JSON |
+| `SocialMediaAgent` | Tool-use loop (max 8) | `claude-opus-4-6` → `claude-sonnet-4-6` for JSON |
+| `EmailAgent` | Single call (per lead) | `claude-sonnet-4-6` |
 | `SearchTermAgent` | Batched (20 terms/call) | `claude-sonnet-4-6` |
 | `LeadScorerAgent` | Single call | `claude-haiku-4-5-20251001` |
+
+For data-source swap-in (mock → live Google Ads / Meta / LinkedIn / Resend), see [`live-data.md`](./live-data.md).
 
 ### Safety invariants
 

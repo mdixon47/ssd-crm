@@ -211,6 +211,58 @@ export interface EmailDraft {
   body: string
 }
 
+// Email Strategist Agent output — batch outreach plan
+export interface EmailOutreachSuggestion {
+  lead_id?: string
+  lead_name: string
+  lead_email: string
+  lead_org?: string
+  current_stage: string
+  priority: 'high' | 'medium' | 'low'
+  reason: string
+  subject: string
+  body: string
+}
+
+export interface EmailStrategyOutput {
+  generated_at: string
+  suggestions: EmailOutreachSuggestion[]
+  segment_summary: string[]
+  skipped: Array<{ lead_name: string; reason: string }>
+  summary: string
+  model_used: string
+  tokens_used: number
+}
+
+// Social Media Agent output — per-platform recommendations + content ideas
+export interface SocialRecommendation {
+  area: 'audience' | 'budget' | 'creative' | 'format' | 'tracking'
+  action: string
+  priority: 'high' | 'medium' | 'low'
+  rationale: string
+}
+
+export interface SocialPostIdea {
+  title: string
+  format: string
+  hook: string
+  audience: string
+  cta: string
+}
+
+export interface SocialStrategyOutput {
+  generated_at: string
+  platform: 'fb' | 'ig' | 'li'
+  health: 'strong' | 'moderate' | 'needs_attention'
+  recommendations: SocialRecommendation[]
+  post_ideas: SocialPostIdea[]
+  scale_candidates: string[]
+  pause_candidates: string[]
+  summary: string
+  model_used: string
+  tokens_used: number
+}
+
 // ------------------------------------------------------------
 // AI / MCP
 // ------------------------------------------------------------
@@ -220,6 +272,9 @@ export type AgentType =
   | 'lead_scorer'
   | 'weekly_audit'
   | 'ad_copy_generator'
+  | 'email_drafter'
+  | 'email_strategist'
+  | 'social_strategist'
 
 export interface AgentRequest {
   type: AgentType

@@ -4,7 +4,7 @@
 // server-side. This composable just manages client state
 // and calls the appropriate server routes.
 // ============================================================
-import type { AuditReport, SearchTerm, Lead } from '~/types'
+import type { AuditReport, SearchTerm, Lead, EmailStrategyOutput, SocialStrategyOutput } from '~/types'
 
 export interface AIMessage {
   role: 'user' | 'assistant' | 'system'
@@ -17,6 +17,8 @@ export function useAI() {
   const messages = ref<AIMessage[]>([])
   const loading = ref(false)
   const lastReport = ref<AuditReport | null>(null)
+  const lastEmailStrategy = ref<EmailStrategyOutput | null>(null)
+  const lastSocialStrategy = ref<SocialStrategyOutput | null>(null)
   const error = ref<string | null>(null)
 
   // ── Chat / General ────────────────────────────────────────
@@ -135,6 +137,48 @@ export function useAI() {
     }
   }
 
+  // ── Email Strategist Agent ───────────────────────────────
+  async function runEmailStrategy(options?: { maxRecipients?: number, focus?: string }): Promise<EmailStrategyOutput | null> {
+    loading.value = true
+    error.value = null
+    try {
+      const res = await $fetch<{ data: EmailStrategyOutput }>('/api/ai/email-strategy', {
+        method: 'POST',
+        body: options ?? {},
+      })
+      lastEmailStrategy.value = res.data
+      return res.data
+    }
+    catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : 'Email strategy failed'
+      return null
+    }
+    finally {
+      loading.value = false
+    }
+  }
+
+  // ── Social Media Agent ───────────────────────────────────
+  async function runSocialStrategy(platform: 'fb' | 'ig' | 'li'): Promise<SocialStrategyOutput | null> {
+    loading.value = true
+    error.value = null
+    try {
+      const res = await $fetch<{ data: SocialStrategyOutput }>('/api/ai/social-strategy', {
+        method: 'POST',
+        body: { platform },
+      })
+      lastSocialStrategy.value = res.data
+      return res.data
+    }
+    catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : 'Social strategy failed'
+      return null
+    }
+    finally {
+      loading.value = false
+    }
+  }
+
   function clearMessages() {
     messages.value = []
   }
@@ -143,12 +187,16 @@ export function useAI() {
     messages,
     loading,
     lastReport,
+    lastEmailStrategy,
+    lastSocialStrategy,
     error,
     chat,
     analyzeCampaigns,
     labelSearchTerms,
     scoreLead,
     runWeeklyAudit,
+    runEmailStrategy,
+    runSocialStrategy,
     clearMessages,
   }
 }

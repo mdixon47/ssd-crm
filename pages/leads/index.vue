@@ -49,6 +49,85 @@
       </div>
     </div>
 
+    <!-- AI Email Strategist -->
+    <div class="rounded-xl p-5 mb-5" style="background:#0d1628;border:1px solid rgba(16,185,129,0.2)">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">✉️</span>
+          <h2 class="font-semibold text-slate-100">AI Email Strategist</h2>
+          <span v-if="strategy" class="text-xs text-slate-500">{{ strategy.suggestions.length }} suggested · {{ strategy.skipped.length }} skipped</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <input
+            v-model="strategyFocus"
+            type="text"
+            placeholder="Focus (optional) — e.g. proposal follow-ups"
+            class="hidden md:block rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none w-64"
+            style="background:#070c18;border:1px solid rgba(148,163,184,0.15)"
+          >
+          <button
+            class="text-xs font-semibold py-1.5 px-3 rounded-md transition-colors disabled:opacity-50 text-emerald-300"
+            style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3)"
+            :disabled="strategyLoading"
+            @click="loadStrategy"
+          >
+            {{ strategyLoading ? '⏳ Planning...' : strategy ? '↻ Re-run' : 'Plan outreach' }}
+          </button>
+        </div>
+      </div>
+
+      <p v-if="!strategy && !strategyLoading && !strategyError" class="text-sm text-slate-500">
+        Identify priority leads to email next — dormant qualified leads, proposal follow-ups, stage nudges — with personalized drafts.
+      </p>
+      <p v-if="strategyError" class="text-sm text-red-400">{{ strategyError }}</p>
+
+      <div v-if="strategy" class="space-y-3">
+        <p class="text-sm text-slate-300 leading-relaxed">{{ strategy.summary }}</p>
+
+        <div v-if="strategy.segment_summary.length" class="flex flex-wrap gap-1.5">
+          <span v-for="(s, i) in strategy.segment_summary" :key="i" class="text-xs text-slate-300 px-2.5 py-1 rounded-full" style="background:rgba(148,163,184,0.08);border:1px solid rgba(148,163,184,0.1)">{{ s }}</span>
+        </div>
+
+        <ul class="space-y-2">
+          <li v-for="(s, i) in strategy.suggestions" :key="i" class="rounded-lg p-3" style="background:#080e1c;border:1px solid rgba(148,163,184,0.08)">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1 flex-wrap">
+                  <span :class="priorityBadgeClass(s.priority)" class="text-xs px-2 py-0.5 rounded-full font-semibold">{{ s.priority }}</span>
+                  <span class="font-medium text-slate-100">{{ s.lead_name }}</span>
+                  <span v-if="s.lead_org" class="text-xs text-slate-500">· {{ s.lead_org }}</span>
+                  <span class="text-xs text-slate-600">· {{ s.current_stage }}</span>
+                </div>
+                <div class="text-xs text-slate-500 mb-2">{{ s.reason }}</div>
+                <div class="text-sm font-medium text-slate-200">{{ s.subject }}</div>
+                <div v-if="expandedSuggestion === i" class="text-xs text-slate-400 whitespace-pre-wrap mt-2 leading-relaxed">{{ s.body }}</div>
+                <button class="text-xs text-cyan-400 hover:text-cyan-300 mt-1 transition-colors" @click="expandedSuggestion = expandedSuggestion === i ? null : i">
+                  {{ expandedSuggestion === i ? '↑ Hide draft' : '↓ Show draft' }}
+                </button>
+              </div>
+              <button
+                v-if="s.lead_id"
+                class="text-xs px-3 py-1.5 rounded-lg text-cyan-300 hover:text-cyan-200 flex-shrink-0 transition-colors"
+                style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2)"
+                @click="openLead(s.lead_id!)"
+              >
+                Open
+              </button>
+            </div>
+          </li>
+        </ul>
+
+        <details v-if="strategy.skipped.length" class="text-xs text-slate-500">
+          <summary class="cursor-pointer hover:text-slate-300">{{ strategy.skipped.length }} skipped</summary>
+          <ul class="mt-2 space-y-1 pl-3">
+            <li v-for="(sk, i) in strategy.skipped" :key="i">• <span class="text-slate-300">{{ sk.lead_name }}</span> — {{ sk.reason }}</li>
+          </ul>
+        </details>
+
+        <p class="text-xs text-slate-600 italic">Drafts are suggestions — review and send via each lead's modal.</p>
+      </div>
+    </div>
+
     <!-- Pipeline View -->
     <div v-if="view === 'pipeline'" class="flex gap-3 overflow-x-auto pb-4">
       <div
@@ -142,12 +221,39 @@
 
 <script setup lang="ts">
 import { useLeadsStore } from '~/stores/leads'
+import { useAI } from '~/composables/useAI'
 import LeadModal from '~/components/leads/LeadModal.vue'
-import type { Lead } from '~/types'
+import type { Lead, EmailStrategyOutput } from '~/types'
 
 const leadsStore = useLeadsStore()
 const view = ref<'pipeline' | 'list'>('pipeline')
 const selectedLead = ref<Lead | null>(null)
+
+// AI Email Strategist
+const { runEmailStrategy, error: aiError } = useAI()
+const strategy = ref<EmailStrategyOutput | null>(null)
+const strategyLoading = ref(false)
+const strategyError = ref<string | null>(null)
+const strategyFocus = ref('')
+const expandedSuggestion = ref<number | null>(null)
+
+async function loadStrategy() {
+  strategyLoading.value = true
+  strategyError.value = null
+  expandedSuggestion.value = null
+  try {
+    const result = await runEmailStrategy({ focus: strategyFocus.value || undefined })
+    if (result) strategy.value = result
+    else strategyError.value = aiError.value ?? 'Strategy run failed'
+  }
+  finally {
+    strategyLoading.value = false
+  }
+}
+
+function priorityBadgeClass(p: 'high' | 'medium' | 'low') {
+  return p === 'high' ? 'bg-red-500/15 text-red-400' : p === 'medium' ? 'bg-amber-500/15 text-amber-400' : 'bg-slate-500/15 text-slate-400'
+}
 
 onMounted(() => { leadsStore.fetchLeads() })
 
