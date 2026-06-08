@@ -58,24 +58,6 @@ jobs:
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "true"
           GITLEAKS_ENABLE_SUMMARY: "true"
 
-  dependency-review:
-    name: Dependency review
-    runs-on: ubuntu-latest
-    # Requires GitHub Advanced Security for private repos. Marked non-blocking
-    # so the rest of the Security workflow can still gate merges. Enable GHAS
-    # (Settings → Security → Code security) to make this actionable.
-    if: github.event_name == 'pull_request'
-    continue-on-error: true
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/dependency-review-action@v5
-        with:
-          fail-on-severity: high
-          comment-summary-in-pr: on-failure
-
   npm-audit:
     name: npm audit (high+critical)
     runs-on: ubuntu-latest

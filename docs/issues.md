@@ -105,8 +105,8 @@ The current `npm audit` CI job fails the build but doesn't write findings to the
 - Adopt pnpm or yarn4 (both record per-platform optional deps correctly).
 - Track [npm/cli#4828](https://github.com/npm/cli/issues/4828) for an upstream fix.
 
-### 14c. `Dependency review` job is non-blocking until GHAS is enabled
-The `actions/dependency-review-action@v5` requires GitHub Advanced Security on private repos. The job runs with `continue-on-error: true` so CI doesn't gate on a feature flag we may not own. Enable GHAS in *Settings → Security → Code security* to make this actionable.
+### 14c. `Dependency review` job removed (2026-06-08)
+The `actions/dependency-review-action@v5` was removed from `security.yml`. Rationale: it required GitHub Advanced Security on private repos (paid), ran only on PR diffs, and its CVE coverage fully overlapped with the existing `npm audit` job which runs on every push and PR. Re-adding it is sensible only if GHAS is enabled and license-checking is added.
 
 ### 14d. `CodeQL` job is non-blocking until Code scanning is enabled
 The CodeQL upload step needs *Code scanning* turned on in repo settings (*Settings → Code security and analysis → Code scanning*). Until that toggle is on, the analyze step 403s. Currently `continue-on-error: true`. Once Code scanning is enabled, drop that flag so findings can gate merges.

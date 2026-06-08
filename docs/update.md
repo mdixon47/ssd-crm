@@ -5,6 +5,24 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-08 (CI pruning + Supabase schema deploy)
+
+### Removed `dependency-review` job from Security workflow
+
+`actions/dependency-review-action@v5` was removed from `.github/workflows/security.yml`. It required GitHub Advanced Security on private repos (paid feature), ran only on PR diffs, and its CVE coverage was fully covered by the existing `npm audit` job (which runs on every push, PR, and weekly cron). Net result: one less always-skipped check on every PR with zero loss of coverage. See `issues.md #14c` for the rationale.
+
+### Supabase schema deployed for the first time
+
+Migrations `001_initial.sql` (leads, search_terms, negative_keywords, audit_sessions + seeds) and `002_email_messages.sql` were applied to the live project via the Supabase Management API. Two reusable maintenance scripts were added:
+- `scripts/check-schema.mjs` — verifies expected tables exist + reports row counts (fixed false-positive bug where `head: true` count masked missing tables).
+- `scripts/apply-migrations.mjs` — applies SQL migrations programmatically via the Management API.
+
+Post-deploy verification: `leads: 8, negative_keywords: 24, search_terms/audit_sessions/email_messages: 0`.
+
+`eslint.config.mjs` gained a `scripts/**` override allowing `console.log` (CLI utilities legitimately print to stdout).
+
+---
+
 ## 2026-06-08 (Email + Social Strategist agents)
 
 ### Two new strategic agents
