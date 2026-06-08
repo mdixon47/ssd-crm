@@ -5,6 +5,17 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-08 (Remove duplicate starter workflows)
+
+Two GitHub web-UI starter workflows (`main.yml` and `codeql.yml`) had been added via the Actions/Code-security setup wizards. Both duplicated jobs that already exist in `ci.yml` and `security.yml`, and each carried regressions that would block CI:
+
+- `main.yml` used `npm ci` (requires `package-lock.json`, which is intentionally untracked per `issues.md #14b`), ran a blocking `typecheck` (`issues.md #5` would fail it on every PR), ran `npm audit --production` at the default level (fails on any `low` advisory), and triggered on a non-existent `develop` branch.
+- `codeql.yml` lacked `continue-on-error`, so it would block PRs until Code Scanning is enabled in repo settings — the same prerequisite the existing `security.yml` codeql job handles non-blockingly. It also added a redundant weekly cron and an extra `actions` language matrix entry.
+
+Both files removed. Existing `ci.yml` + `security.yml` cover lint, typecheck, build, CodeQL, gitleaks, and npm audit with the agreed blocking/non-blocking profile.
+
+---
+
 ## 2026-06-08 (Dependabot triage)
 
 ### Open PRs triaged
