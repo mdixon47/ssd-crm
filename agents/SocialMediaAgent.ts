@@ -228,7 +228,11 @@ function handleSocialTool(name: string, platform: SocialPlatformData): unknown {
       })
     case 'get_post_engagement': {
       const ranked = [...platform.posts]
-        .map(p => ({ ...p, leads_per_reach: p.reach > 0 ? p.leads / p.reach : 0 }))
+        .map((p) => {
+          const reach = p.reach ?? 0
+          const leads = p.leads ?? 0
+          return { ...p, reach, leads, leads_per_reach: reach > 0 ? leads / reach : 0 }
+        })
         .sort((a, b) => b.leads_per_reach - a.leads_per_reach)
       return {
         top: ranked.slice(0, 3).map(p => ({ title: p.title, format: p.format, reach: p.reach, leads: p.leads })),

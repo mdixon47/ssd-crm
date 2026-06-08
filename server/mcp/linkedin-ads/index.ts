@@ -30,12 +30,14 @@ export function createLinkedInAdsMCPServer() {
   const MODE = isConfigured() ? 'live' : 'mock'
 
   // ── get_campaigns ─────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     'get_campaigns',
-    'Get all LinkedIn ad campaigns with performance metrics',
     {
-      date_range_start: z.string().optional().describe('YYYY-MM-DD'),
-      date_range_end: z.string().optional().describe('YYYY-MM-DD'),
+      description: 'Get all LinkedIn ad campaigns with performance metrics',
+      inputSchema: {
+        date_range_start: z.string().optional().describe('YYYY-MM-DD'),
+        date_range_end: z.string().optional().describe('YYYY-MM-DD'),
+      },
     },
     async ({ date_range_start, date_range_end }) => {
       if (MODE === 'live') {
@@ -77,10 +79,11 @@ export function createLinkedInAdsMCPServer() {
   )
 
   // ── get_lead_gen_forms ────────────────────────────────────
-  server.tool(
+  server.registerTool(
     'get_lead_gen_forms',
-    'Get all LinkedIn Lead Gen Forms with submission counts',
-    {},
+    {
+      description: 'Get all LinkedIn Lead Gen Forms with submission counts',
+    },
     async () => {
       if (MODE === 'live') {
         const data = await liFetch('leadGenerationForms', {
@@ -107,12 +110,14 @@ export function createLinkedInAdsMCPServer() {
   )
 
   // ── get_lead_gen_responses ────────────────────────────────
-  server.tool(
+  server.registerTool(
     'get_lead_gen_responses',
-    'Get form responses from a specific LinkedIn Lead Gen Form',
     {
-      form_id: z.string().describe('Lead Gen Form ID'),
-      start_date: z.string().optional().describe('YYYY-MM-DD'),
+      description: 'Get form responses from a specific LinkedIn Lead Gen Form',
+      inputSchema: {
+        form_id: z.string().describe('Lead Gen Form ID'),
+        start_date: z.string().optional().describe('YYYY-MM-DD'),
+      },
     },
     async ({ form_id, start_date }) => {
       if (MODE === 'live') {
@@ -141,14 +146,16 @@ export function createLinkedInAdsMCPServer() {
   )
 
   // ── get_analytics ─────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     'get_analytics',
-    'Get detailed analytics for a specific LinkedIn campaign',
     {
-      campaign_id: z.string().describe('Campaign ID'),
-      date_range_start: z.string().optional().describe('YYYY-MM-DD (default: 30 days ago)'),
-      date_range_end: z.string().optional().describe('YYYY-MM-DD (default: today)'),
-      breakdown: z.enum(['MEMBER_COMPANY_SIZE', 'MEMBER_JOB_FUNCTION', 'MEMBER_SENIORITY', 'none']).optional().default('none'),
+      description: 'Get detailed analytics for a specific LinkedIn campaign',
+      inputSchema: {
+        campaign_id: z.string().describe('Campaign ID'),
+        date_range_start: z.string().optional().describe('YYYY-MM-DD (default: 30 days ago)'),
+        date_range_end: z.string().optional().describe('YYYY-MM-DD (default: today)'),
+        breakdown: z.enum(['MEMBER_COMPANY_SIZE', 'MEMBER_JOB_FUNCTION', 'MEMBER_SENIORITY', 'none']).optional().default('none'),
+      },
     },
     async ({ campaign_id, date_range_start, date_range_end, breakdown = 'none' }) => {
       if (MODE === 'live') {

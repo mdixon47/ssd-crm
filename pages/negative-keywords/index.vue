@@ -226,7 +226,7 @@ const stats = computed(() => [
   { label: 'Account-Level', value: keywords.value.filter(k => !k.campaign).length, color: 'text-slate-300' },
 ])
 
-function matchClass(mt: string) {
+function matchClass(mt: string | undefined) {
   return mt === 'Exact' ? 'text-purple-400' : mt === 'Phrase' ? 'text-blue-400' : 'text-slate-400'
 }
 

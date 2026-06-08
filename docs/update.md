@@ -5,6 +5,21 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-08 (TypeScript error backlog cleared — `issues.md #5`)
+
+`npm run typecheck` now reports **0 errors** (down from 56). Four-part fix:
+
+1. **MCP SDK `tool()` → `registerTool()` migration** across `server/mcp/{crm,google-ads,linkedin-ads,meta-ads}/index.ts`. The deprecated `tool()` overload's ambiguous resolution between `ToolAnnotations` and `ZodRawShapeCompat` was the source of `TS2589` "excessively deep" errors. `registerTool` uses an explicit config object and avoids the bad inference path.
+2. **`zod` duplicate dedupe.** `@modelcontextprotocol/sdk@1.29.0` was pulling its own nested `zod@4.4.3` through `zod-to-json-schema` while the project pins `zod@^3.24.2`. The type identity mismatch between the two zod copies produced the `Type 'ZodOptional<ZodNumber>' is not assignable to type 'AnySchema'` errors. `npm dedupe` collapsed both to a single `zod@3.25.76`; `package.json` now declares `"overrides": { "zod": "$zod" }` so fresh `npm install` runs (CI, Netlify) deterministically resolve a single copy.
+3. **Type Drift in `types/index.ts`.** UI-only fields (`match_type`, `reason`, `status` on `NegativeKeyword`; `tier`, `recommended_next_step`, `estimated_deal_value` on `LeadScore`; `reach`, `leads`, `engagement` on `SocialPost`) and DB-only fields (`platform`, `week_date` on `SearchTerm`) are now declared as optional supersets so UI components and Supabase queries can coexist.
+4. **Narrow per-file fixes.** `CampaignOptimizerAgent.finalOutput` initialised to a default-shaped object instead of `null`; `pages/leads/add.vue` casts `qualified`/`source` to enum types; `server/api/email/draft.post.ts` casts to `Partial<Lead>`; `?? 0` / `?? ''` guards in `pages/campaigns/index.vue`, `pages/social/index.vue`, and `agents/SocialMediaAgent.ts`.
+
+`vue-tsc --noEmit` and `nuxt typecheck` both clean. `npm run lint` clean. Unblocks future zod v4 and TypeScript 6 upgrades (`issues.md #17`, `#18`).
+
+**Follow-up**: drop `continue-on-error: true` from the `typecheck` job in `.github/workflows/ci.yml` and re-add `typecheck` to `build.needs` so future regressions block merges.
+
+---
+
 ## 2026-06-08 (Remove duplicate starter workflows)
 
 Two GitHub web-UI starter workflows (`main.yml` and `codeql.yml`) had been added via the Actions/Code-security setup wizards. Both duplicated jobs that already exist in `ci.yml` and `security.yml`, and each carried regressions that would block CI:

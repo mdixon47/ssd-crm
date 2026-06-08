@@ -6,6 +6,25 @@
 // ============================================================
 import type { AuditReport, SearchTerm, Lead, EmailStrategyOutput, SocialStrategyOutput } from '~/types'
 
+export interface LeadScoreResult {
+  score: number
+  reasoning: string
+  tier?: 'A' | 'B' | 'C' | 'D'
+  fit_signals?: string[]
+  red_flags?: string[]
+  recommended_next_step?: string
+  estimated_deal_value?: string
+  urgency?: 'high' | 'medium' | 'low'
+  model_used?: string
+}
+
+export interface LabeledSearchTerm {
+  term: string
+  suggested_label: SearchTerm['label']
+  confidence: 'high' | 'medium' | 'low'
+  reason?: string
+}
+
 export interface AIMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
@@ -78,11 +97,11 @@ export function useAI() {
   }
 
   // ── Search Term Labeler Agent ────────────────────────────
-  async function labelSearchTerms(terms: SearchTerm[]): Promise<Record<string, string> | null> {
+  async function labelSearchTerms(terms: SearchTerm[]): Promise<LabeledSearchTerm[] | null> {
     loading.value = true
     error.value = null
     try {
-      const res = await $fetch<{ data: Record<string, string> }>('/api/ai/label-terms', {
+      const res = await $fetch<{ data: LabeledSearchTerm[] }>('/api/ai/label-terms', {
         method: 'POST',
         body: { terms },
       })
@@ -98,11 +117,11 @@ export function useAI() {
   }
 
   // ── Lead Scorer Agent ────────────────────────────────────
-  async function scoreLead(lead: Partial<Lead>): Promise<{ score: number; reasoning: string } | null> {
+  async function scoreLead(lead: Partial<Lead>): Promise<LeadScoreResult | null> {
     loading.value = true
     error.value = null
     try {
-      const res = await $fetch<{ data: { score: number; reasoning: string } }>('/api/ai/score-lead', {
+      const res = await $fetch<{ data: LeadScoreResult }>('/api/ai/score-lead', {
         method: 'POST',
         body: { lead },
       })

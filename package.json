@@ -37,5 +37,8 @@
     "eslint": "^9.39.4",
     "typescript": "^5.8.2",
     "vue-tsc": "^2.2.12"
+  },
+  "overrides": {
+    "zod": "$zod"
   }
 }

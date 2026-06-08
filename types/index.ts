@@ -94,30 +94,40 @@ export type SearchTermLabel =
   | ''
 
 export interface SearchTerm {
-  id: string
-  created_at: string
-  updated_at: string
-  week_date: string
+  id?: string
+  created_at?: string
+  updated_at?: string
+  week_date?: string
   term: string
   campaign: string
-  platform: CampaignPlatform | 'google'
+  platform?: CampaignPlatform | string
   impressions: number
   clicks: number
   cost: number
   conversions: number
-  label: SearchTermLabel
+  label: SearchTermLabel | string
 }
 
 // ------------------------------------------------------------
 // Negative Keywords
+// DB-backed columns (category/platform/active) plus optional UI
+// fields used by the Google Ads-style management page.
 // ------------------------------------------------------------
+export type NegativeKeywordMatchType = 'Broad' | 'Phrase' | 'Exact'
+export type NegativeKeywordStatus = 'pending' | 'applied'
+
 export interface NegativeKeyword {
   id: string
   created_at: string
   keyword: string
-  category: string
-  platform: string
-  active: boolean
+  category?: string
+  platform?: string
+  active?: boolean
+  // UI-only (Google Ads management view)
+  match_type?: NegativeKeywordMatchType | string
+  campaign?: string
+  reason?: string
+  status?: NegativeKeywordStatus
 }
 
 // ------------------------------------------------------------
@@ -151,6 +161,7 @@ export interface AuditReport {
 // Social Media
 // ------------------------------------------------------------
 export interface SocialCampaign {
+  id?: string
   name: string
   objective: string
   audience: string
@@ -166,14 +177,28 @@ export interface SocialCampaign {
   notes: string
 }
 
+export type SocialPostStatus = 'active' | 'paused' | 'draft' | 'scheduled' | 'published'
+
 export interface SocialPost {
+  id?: string
   title: string
   format: string
-  status: 'active' | 'paused' | 'draft'
-  reach: number
-  clicks: number
-  leads: number
-  date: string
+  status: SocialPostStatus
+  reach?: number
+  clicks?: number
+  leads?: number
+  engagement?: number
+  date?: string
+  publish_date?: string
+}
+
+export interface SocialUtmConfig {
+  source: string
+  medium: string
+  click_param: string
+  template?: string
+  campaign?: string
+  content?: string
 }
 
 export interface SocialPlatformData {
@@ -185,7 +210,7 @@ export interface SocialPlatformData {
   campaigns: SocialCampaign[]
   audiences: string[]
   adFormats: string[]
-  utm: { source: string; medium: string; click_param: string }
+  utm: SocialUtmConfig
   trackingNote: string
   posts: SocialPost[]
 }

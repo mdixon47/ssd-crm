@@ -88,7 +88,7 @@
 
 <script setup lang="ts">
 import { useLeadsStore } from '~/stores/leads'
-import type { LeadStage } from '~/types'
+import type { LeadStage, QualifiedStatus, LeadSource } from '~/types'
 
 const router = useRouter()
 const leadsStore = useLeadsStore()
@@ -100,8 +100,9 @@ const STAGES: LeadStage[] = ['New Lead','Contacted','Booked Consultation','Quali
 
 const form = reactive({
   fname: '', lname: '', email: '', phone: '', org: '', title: '',
-  interest: '', stage: 'New Lead' as LeadStage, source: '', campaign: '',
-  keyword: '', gclid: '', landing: '', revenue: 0, notes: '', qualified: '',
+  interest: '', stage: 'New Lead' as LeadStage, source: '' as LeadSource, campaign: '',
+  keyword: '', gclid: '', landing: '', revenue: 0, notes: '',
+  qualified: '' as QualifiedStatus,
   lead_date: new Date().toISOString().slice(0, 10),
 })
 

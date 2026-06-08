@@ -96,7 +96,7 @@ ${termList}`,
     catch {
       // Fallback: mark all in batch as watch
       batch.forEach(t => allLabeled.push({
-        id: t.id,
+        id: t.id ?? t.term,
         term: t.term,
         suggested_label: 'watch',
         confidence: 'low',

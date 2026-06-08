@@ -97,7 +97,16 @@ Please use the available tools to get detailed data, then provide structured rec
     },
   ]
 
-  let finalOutput: OptimizerOutput | null = null
+  let finalOutput: OptimizerOutput = {
+    recommendations: [],
+    budget_shifts: [],
+    keyword_actions: [],
+    landing_page_flags: [],
+    tracking_issues: [],
+    summary: '',
+    model_used: '',
+    tokens_used: 0,
+  }
   let totalTokens = 0
   const modelUsed = 'claude-opus-4-6'
 

@@ -26,12 +26,14 @@ export function createMetaAdsMCPServer() {
   const MODE = isConfigured() ? 'live' : 'mock'
 
   // ── get_campaigns ─────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     'get_campaigns',
-    'Get all Facebook and Instagram ad campaigns with performance metrics',
     {
-      date_preset: z.enum(['last_7d', 'last_14d', 'last_30d', 'this_month']).optional(),
-      platform: z.enum(['facebook', 'instagram', 'all']).optional().default('all'),
+      description: 'Get all Facebook and Instagram ad campaigns with performance metrics',
+      inputSchema: {
+        date_preset: z.enum(['last_7d', 'last_14d', 'last_30d', 'this_month']).optional(),
+        platform: z.enum(['facebook', 'instagram', 'all']).optional().default('all'),
+      },
     },
     async ({ date_preset = 'last_30d', platform = 'all' }) => {
       if (MODE === 'live') {
@@ -83,10 +85,11 @@ export function createMetaAdsMCPServer() {
   )
 
   // ── get_lead_forms ────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     'get_lead_forms',
-    'Get all Facebook Lead Ad forms with response counts',
-    {},
+    {
+      description: 'Get all Facebook Lead Ad forms with response counts',
+    },
     async () => {
       if (MODE === 'live') {
         const data = await metaFetch(`act_${process.env.META_AD_ACCOUNT_ID}/leadgen_forms`, {
@@ -112,12 +115,14 @@ export function createMetaAdsMCPServer() {
   )
 
   // ── get_lead_form_responses ───────────────────────────────
-  server.tool(
+  server.registerTool(
     'get_lead_form_responses',
-    'Get responses (lead data) from a specific Facebook Lead Ad form',
     {
-      form_id: z.string().describe('Lead form ID'),
-      limit: z.number().optional().default(25),
+      description: 'Get responses (lead data) from a specific Facebook Lead Ad form',
+      inputSchema: {
+        form_id: z.string().describe('Lead form ID'),
+        limit: z.number().optional().default(25),
+      },
     },
     async ({ form_id, limit = 25 }) => {
       if (MODE === 'live') {
@@ -143,14 +148,16 @@ export function createMetaAdsMCPServer() {
   )
 
   // ── get_insights ──────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     'get_insights',
-    'Get performance insights for a campaign, ad set, or ad',
     {
-      object_id: z.string().describe('Campaign, ad set, or ad ID'),
-      level: z.enum(['campaign', 'adset', 'ad']).describe('Breakdown level'),
-      date_preset: z.enum(['last_7d', 'last_14d', 'last_30d']).optional().default('last_7d'),
-      breakdown: z.enum(['age', 'gender', 'placement', 'device']).optional(),
+      description: 'Get performance insights for a campaign, ad set, or ad',
+      inputSchema: {
+        object_id: z.string().describe('Campaign, ad set, or ad ID'),
+        level: z.enum(['campaign', 'adset', 'ad']).describe('Breakdown level'),
+        date_preset: z.enum(['last_7d', 'last_14d', 'last_30d']).optional().default('last_7d'),
+        breakdown: z.enum(['age', 'gender', 'placement', 'device']).optional(),
+      },
     },
     async ({ object_id, level, date_preset = 'last_7d', breakdown }) => {
       if (MODE === 'live') {

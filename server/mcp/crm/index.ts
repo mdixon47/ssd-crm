@@ -18,15 +18,17 @@ export function createCRMMCPServer() {
   })
 
   // ── get_leads ────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     'get_leads',
-    'Retrieve leads from the CRM with optional filters',
     {
-      stage: z.string().optional().describe('Filter by pipeline stage'),
-      campaign: z.string().optional().describe('Filter by campaign name'),
-      source: z.string().optional().describe('Filter by traffic source (google, facebook, etc.)'),
-      qualified: z.string().optional().describe('Filter by qualification status (yes, no, partial)'),
-      limit: z.number().optional().describe('Maximum number of leads to return (default: 50)'),
+      description: 'Retrieve leads from the CRM with optional filters',
+      inputSchema: {
+        stage: z.string().optional().describe('Filter by pipeline stage'),
+        campaign: z.string().optional().describe('Filter by campaign name'),
+        source: z.string().optional().describe('Filter by traffic source (google, facebook, etc.)'),
+        qualified: z.string().optional().describe('Filter by qualification status (yes, no, partial)'),
+        limit: z.number().optional().describe('Maximum number of leads to return (default: 50)'),
+      },
     },
     async ({ stage, campaign, source, qualified, limit = 50 }) => {
       const supabase = createSupabaseClient()
@@ -50,10 +52,12 @@ export function createCRMMCPServer() {
   )
 
   // ── get_lead ──────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     'get_lead',
-    'Get a single lead by ID',
-    { id: z.string().describe('Lead UUID') },
+    {
+      description: 'Get a single lead by ID',
+      inputSchema: { id: z.string().describe('Lead UUID') },
+    },
     async ({ id }) => {
       const supabase = createSupabaseClient()
       const { data, error } = await supabase.from('leads').select('*').eq('id', id).single()
@@ -63,10 +67,11 @@ export function createCRMMCPServer() {
   )
 
   // ── get_campaign_summary ──────────────────────────────────
-  server.tool(
+  server.registerTool(
     'get_campaign_summary',
-    'Get aggregated performance summary for all campaigns with spend, leads, and revenue from both Google Ads and social platforms',
-    {},
+    {
+      description: 'Get aggregated performance summary for all campaigns with spend, leads, and revenue from both Google Ads and social platforms',
+    },
     async () => {
       const supabase = createSupabaseClient()
       // Get revenue and lead counts from CRM grouped by campaign
@@ -105,12 +110,14 @@ export function createCRMMCPServer() {
   )
 
   // ── get_search_terms ─────────────────────────────────────
-  server.tool(
+  server.registerTool(
     'get_search_terms',
-    'Get search terms from the weekly review, optionally filtered by campaign or label',
     {
-      campaign: z.string().optional().describe('Filter by campaign name'),
-      label: z.string().optional().describe('Filter by label (keep, watch, negative, build_page, new_campaign)'),
+      description: 'Get search terms from the weekly review, optionally filtered by campaign or label',
+      inputSchema: {
+        campaign: z.string().optional().describe('Filter by campaign name'),
+        label: z.string().optional().describe('Filter by label (keep, watch, negative, build_page, new_campaign)'),
+      },
     },
     async ({ campaign, label }) => {
       const supabase = createSupabaseClient()
@@ -125,12 +132,14 @@ export function createCRMMCPServer() {
   )
 
   // ── get_negative_keywords ────────────────────────────────
-  server.tool(
+  server.registerTool(
     'get_negative_keywords',
-    'Get all active negative keywords from the blocklist',
     {
-      category: z.string().optional().describe('Filter by category'),
-      platform: z.string().optional().describe('Filter by platform (all, google, facebook, linkedin)'),
+      description: 'Get all active negative keywords from the blocklist',
+      inputSchema: {
+        category: z.string().optional().describe('Filter by category'),
+        platform: z.string().optional().describe('Filter by platform (all, google, facebook, linkedin)'),
+      },
     },
     async ({ category, platform }) => {
       const supabase = createSupabaseClient()
@@ -145,10 +154,11 @@ export function createCRMMCPServer() {
   )
 
   // ── get_revenue_summary ───────────────────────────────────
-  server.tool(
+  server.registerTool(
     'get_revenue_summary',
-    'Get total revenue, average deal size, and revenue by stage and source',
-    {},
+    {
+      description: 'Get total revenue, average deal size, and revenue by stage and source',
+    },
     async () => {
       const supabase = createSupabaseClient()
       const { data, error } = await supabase

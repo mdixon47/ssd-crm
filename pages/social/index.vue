@@ -166,7 +166,7 @@
           </div>
           <div class="px-5 py-3" style="background:#080e1c">
             <div class="text-xs font-semibold text-slate-600 uppercase mb-1">UTM</div>
-            <code class="text-xs text-slate-500 break-all">{{ platform.utm.template.replace('{campaign}', campaign.name.toLowerCase().replace(/\s+/g, '_')) }}</code>
+            <code class="text-xs text-slate-500 break-all">{{ (platform.utm.template ?? '').replace('{campaign}', campaign.name.toLowerCase().replace(/\s+/g, '_')) }}</code>
           </div>
         </div>
       </div>

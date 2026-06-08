@@ -33,15 +33,17 @@ RLS policy templates are commented out at the bottom of `supabase/migrations/001
 ### 4. No authentication on `/api/mcp/*`
 The MCP endpoints are server-side, but unauthenticated. Acceptable while the app is single-tenant and not publicly exposed; required before any external access.
 
-### 5. Pre-existing TypeScript errors block `nuxt typecheck`
-`npm run typecheck` reports 40+ errors across `agents/CampaignOptimizerAgent.ts`, `components/leads/LeadModal.vue`, `pages/campaigns/index.vue`, `pages/leads/add.vue`, `pages/negative-keywords/index.vue`, and elsewhere. Categories:
-- Hand-written types diverging from `types/index.ts` (e.g. `NegativeKeyword` missing `status`, `match_type`, `campaign`, `reason` while pages still reference them).
-- `LeadScore` payloads using `tier` / `recommended_next_step` / `estimated_deal_value` fields not on the interface.
-- `LeadInsert` rejecting `qualified: string` because the type expects `QualifiedStatus`.
+### 5. Pre-existing TypeScript errors block `nuxt typecheck` — **RESOLVED 2026-06-08**
+`npm run typecheck` previously reported 56 errors across `agents/`, `components/leads/LeadModal.vue`, `pages/campaigns/`, `pages/leads/`, `pages/negative-keywords/`, `pages/search-terms/`, `pages/social/`, and `server/mcp/*`. Resolution summary:
 
-**Mitigation in place**: the CI `typecheck` job has `continue-on-error: true` so it runs and reports without blocking. The `build` job no longer depends on it.
+1. **MCP SDK `tool()` → `registerTool()` migration** (`server/mcp/crm`, `google-ads`, `linkedin-ads`, `meta-ads`). The deprecated `tool()` overload had ambiguous resolution between `ToolAnnotations` and `ZodRawShapeCompat`, producing TS2589 "excessively deep" instantiation. `registerTool` uses an explicit config object that bypasses the problematic inference path.
+2. **`zod` duplicate dedupe** — `@modelcontextprotocol/sdk@1.29.0` nests `zod@4.4.3` via `zod-to-json-schema`, while the project pins `zod@^3.24.2`. `npm dedupe` collapsed both to a single `zod@3.25.76`; `package.json` now declares `"overrides": { "zod": "$zod" }` to keep fresh installs deterministic.
+3. **Type Drift between UI and DB schema** — `types/index.ts` extended so DB-only fields (`platform`, `week_date`) and UI-only fields (`match_type`, `reason`, `status`, `tier`, `recommended_next_step`, `estimated_deal_value`) coexist as optional supersets. `LeadScore`, `NegativeKeyword`, `SocialPost`, and `SearchTerm` updated accordingly.
+4. **Narrow per-file null/enum fixes** — `agents/CampaignOptimizerAgent.ts` initialises `finalOutput` to a default-shaped object; `pages/leads/add.vue` casts `qualified` / `source` to enum types; `server/api/email/draft.post.ts` casts to `Partial<Lead>`; misc `?? 0` / `?? ''` guards in social pages.
 
-**Exit criteria**: drive type errors to 0, then drop `continue-on-error` and re-add `typecheck` to `build.needs` in `.github/workflows/ci.yml`.
+**Final state**: `npx vue-tsc --noEmit` and `nuxt typecheck` both report 0 errors. `npm run lint` clean.
+
+**Follow-up**: drop `continue-on-error: true` from the `typecheck` job in `.github/workflows/ci.yml` and re-add it to `build.needs` so future regressions block merges.
 
 ---
 

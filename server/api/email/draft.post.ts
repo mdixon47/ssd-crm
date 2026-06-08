@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { getAnthropicClient } from '~/server/utils/anthropic'
 import { runEmailAgent } from '~/agents/EmailAgent'
+import type { Lead } from '~/types'
 
 const schema = z.object({
   lead: z.object({
@@ -25,7 +26,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const client = getAnthropicClient()
-  const draft = await runEmailAgent(client, parsed.data.lead, parsed.data.purpose)
+  const draft = await runEmailAgent(client, parsed.data.lead as Partial<Lead>, parsed.data.purpose)
 
   return { data: { subject: draft.subject, body: draft.body } }
 })
