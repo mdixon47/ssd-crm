@@ -17,6 +17,13 @@ export default createConfigForNuxt({
         'no-console': ['warn', { allow: ['warn', 'error'] }],
       },
     },
+    {
+      // CLI maintenance scripts may use stdout freely.
+      files: ['scripts/**/*.mjs', 'scripts/**/*.js'],
+      rules: {
+        'no-console': 'off',
+      },
+    },
   )
   .prepend(
     {
