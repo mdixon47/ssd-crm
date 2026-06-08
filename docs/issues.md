@@ -41,9 +41,7 @@ The MCP endpoints are server-side, but unauthenticated. Acceptable while the app
 3. **Type Drift between UI and DB schema** — `types/index.ts` extended so DB-only fields (`platform`, `week_date`) and UI-only fields (`match_type`, `reason`, `status`, `tier`, `recommended_next_step`, `estimated_deal_value`) coexist as optional supersets. `LeadScore`, `NegativeKeyword`, `SocialPost`, and `SearchTerm` updated accordingly.
 4. **Narrow per-file null/enum fixes** — `agents/CampaignOptimizerAgent.ts` initialises `finalOutput` to a default-shaped object; `pages/leads/add.vue` casts `qualified` / `source` to enum types; `server/api/email/draft.post.ts` casts to `Partial<Lead>`; misc `?? 0` / `?? ''` guards in social pages.
 
-**Final state**: `npx vue-tsc --noEmit` and `nuxt typecheck` both report 0 errors. `npm run lint` clean.
-
-**Follow-up**: drop `continue-on-error: true` from the `typecheck` job in `.github/workflows/ci.yml` and re-add it to `build.needs` so future regressions block merges.
+**Final state**: `npx vue-tsc --noEmit` and `nuxt typecheck` both report 0 errors. `npm run lint` clean. `.github/workflows/ci.yml` `typecheck` job is now blocking (`continue-on-error` removed; `build.needs: [lint, typecheck]`).
 
 ---
 

@@ -5,6 +5,18 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-08 (CI typecheck is now blocking)
+
+Now that `npm run typecheck` reports 0 errors (see the entry below), the `.github/workflows/ci.yml` `typecheck` job:
+
+- Drops `continue-on-error: true`
+- Drops its "(non-blocking)" name suffix
+- Is now in `build.needs: [lint, typecheck]` so any future regression on a PR fails the build job and blocks merge
+
+Future TS regressions will surface immediately rather than accumulate as another backlog.
+
+---
+
 ## 2026-06-08 (TypeScript error backlog cleared — `issues.md #5`)
 
 `npm run typecheck` now reports **0 errors** (down from 56). Four-part fix:
