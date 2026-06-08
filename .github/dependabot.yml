@@ -38,6 +38,12 @@ updates:
           - 'eslint'
           - 'eslint-*'
           - '@nuxt/eslint'
+        # Group only minor + patch. Majors arrive as individual PRs so each
+        # can be evaluated for breaking changes (peer-dep coordination,
+        # vue-tsc support, engines range, etc). See docs/issues.md #18.
+        update-types:
+          - minor
+          - patch
     ignore:
       # Major Nuxt upgrades are coordinated manually
       - dependency-name: 'nuxt'

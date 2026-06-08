@@ -5,6 +5,22 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-08 (Dependabot triage)
+
+### Open PRs triaged
+
+| PR | Action | Reason |
+|---|---|---|
+| #1 `github/codeql-action 3→4` | Merge (`@dependabot merge`) | Action-only bump, CodeQL job is already non-blocking, v4 is the active maintenance line. |
+| #6 `zod 3→4` | Closed + ignored major | v4 rewrite needs clean type-baseline (blocked by `issues.md #5`). Tracked as `issues.md #17`. |
+| #8 `dev-tooling group` (4 majors) | Closed (no permanent ignore) | Each major has independent blockers (engines range, vue-tsc compat, peer-dep coordination). Tracked as `issues.md #18`. |
+
+### Dependabot config: restrict `dev-tooling` group to minor + patch
+
+`.github/dependabot.yml`'s `dev-tooling` group (typescript, @types/*, eslint, eslint-*, @nuxt/eslint) now uses `update-types: [minor, patch]`. Majors will arrive as individual ungrouped PRs so each can be evaluated for breaking changes one at a time, with isolated bisection if anything regresses.
+
+---
+
 ## 2026-06-08 (CI pruning + Supabase schema deploy)
 
 ### Removed `dependency-review` job from Security workflow
