@@ -124,6 +124,12 @@ No test framework is wired up. Recommended scope for a first pass:
 ### 17. zod v4 upgrade — eligible to attempt (Dependabot PR #6 closed 2026-06-08)
 The 2026-06-08 baseline-fix (see `update.md`) unblocks v4 evaluation. Source-level migration is required, not just a version bump: `z.string().email()` → `z.email()` (5 sites), `z.string().uuid()` → `z.uuid()` (1 site), and any reader of `ZodError.errors` must move to `.issues`. Affected files: `server/api/{email/draft,email/send,leads/index,ai/email-strategy,ai/social-strategy}.post.ts` and `server/mcp/*/index.ts`. **Exit criteria**: unignore via Dependabot or bump locally, apply renames, run `npm run typecheck` + `npm run build`, decide whether to keep the `overrides.zod` pin (the MCP SDK ships v4 natively, so the override likely becomes unnecessary).
 
+### 19. Runtime smoke-test debt on the 2026-06-08 runtime-deps bundle
+The atomic bump of `@anthropic-ai/sdk` 0.39 → 0.102 and `@nuxtjs/supabase` 1.6 → 2.0.9 was validated by `lint`, `vue-tsc --noEmit`, and `npm run build` only — no live API call, no booted Nuxt server. The type system shows clean, and the actual surface is narrow (`messages.create`, `Anthropic.Tool`, `MessageParam`, `ToolResultBlockParam`; no `useSupabaseUser`/`useSupabaseClient` callers anywhere), but type-clean is not runtime-clean. **Exit criteria** before treating this as fully shipped:
+- Hit one Anthropic-backed agent end-to-end (`/api/ai/email-strategy` or the AI panel's "Plan Outreach") with a real key and confirm tool-call iteration completes.
+- `TMPDIR=/tmp npm run dev` and confirm the `@nuxtjs/supabase` v2 module boots without console warnings (the v2 module changed how `redirect: false` is honored on the SSR path).
+- If anything regresses, revert is a single commit; both packages also remain individually downgradeable.
+
 ---
 
 ## How to update this file

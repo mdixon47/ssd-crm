@@ -5,6 +5,30 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-08 (Runtime-deps bundle: Anthropic SDK + Nuxt Supabase module)
+
+Lands the two deferred runtime majors as one atomic bump after a clean pre-flight on `test/runtime-upgrades-eval`:
+
+| Package | From | To | PR superseded |
+|---|---|---|---|
+| `@anthropic-ai/sdk` | 0.39.0 | 0.102.0 | #11 |
+| `@nuxtjs/supabase` | 1.6.2 | 2.0.9 | #12 |
+
+Verification (zero source changes required):
+
+- `npm run lint` clean
+- `npx vue-tsc --noEmit` → 0 errors
+- `npm run build` → Nitro/Vercel preset succeeds
+
+Why the surface was narrower than initially flagged:
+
+- **Anthropic**: all 7 agents use only `client.messages.create`, `Anthropic.Tool[]`, `Anthropic.MessageParam[]`, and `Anthropic.ToolResultBlockParam[]`. These have been stable since 0.30.x; the 0.40–0.102 changes (managed agents, middleware, beta features) are additive.
+- **`@nuxtjs/supabase`**: `useSupabaseUser`/`useSupabaseClient`/auth-middleware calls — exactly what v2 redesigned — are not used anywhere. The module is registered in `nuxt.config.ts` only; DB access goes through `server/utils/supabase.ts` via `@supabase/supabase-js` with the service-role key.
+
+Runtime smoke-test debt tracked in `issues.md #19` (not yet exercised against a live Anthropic key or a booted dev server). Revert is a single commit if either surface regresses in practice.
+
+---
+
 ## 2026-06-08 (Dev-tooling majors bundle landed — `issues.md #18` resolved)
 
 With the type baseline clean and CI typecheck blocking, the deferred dev-tooling majors were verified together (`lint`, `vue-tsc --noEmit`, `npm run build` all green with **zero source changes**) and landed as one atomic bump.

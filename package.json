@@ -16,9 +16,9 @@
     "npm": ">=10.0.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
+    "@anthropic-ai/sdk": "^0.102.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
-    "@nuxtjs/supabase": "^1.4.6",
+    "@nuxtjs/supabase": "^2.0.9",
     "@pinia/nuxt": "^0.11.3",
     "@supabase/supabase-js": "^2.45.0",
     "chart.js": "^4.4.4",
