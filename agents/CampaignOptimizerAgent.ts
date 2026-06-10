@@ -97,16 +97,6 @@ Please use the available tools to get detailed data, then provide structured rec
     },
   ]
 
-  let finalOutput: OptimizerOutput = {
-    recommendations: [],
-    budget_shifts: [],
-    keyword_actions: [],
-    landing_page_flags: [],
-    tracking_issues: [],
-    summary: '',
-    model_used: '',
-    tokens_used: 0,
-  }
   let totalTokens = 0
   const modelUsed = 'claude-opus-4-6'
 
@@ -183,10 +173,10 @@ ${lastText || 'No analysis produced before reaching tool-call iteration cap.'}`,
       : '{}'
     const cleaned = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const parsed = JSON.parse(cleaned)
-    finalOutput = { ...parsed, model_used: modelUsed, tokens_used: totalTokens }
+    return { ...parsed, model_used: modelUsed, tokens_used: totalTokens } as OptimizerOutput
   }
   catch {
-    finalOutput = {
+    return {
       recommendations: [],
       budget_shifts: [],
       keyword_actions: [],
@@ -199,8 +189,6 @@ ${lastText || 'No analysis produced before reaching tool-call iteration cap.'}`,
       tokens_used: totalTokens,
     }
   }
-
-  return finalOutput
 }
 
 // ── Tool handlers (mock data — swap for real API calls) ────

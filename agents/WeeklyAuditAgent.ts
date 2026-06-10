@@ -170,8 +170,6 @@ ${rawAnalysis}`,
     ],
   })
 
-  _totalTokens += (structuredResponse.usage?.input_tokens ?? 0) + (structuredResponse.usage?.output_tokens ?? 0)
-
   try {
     const raw = structuredResponse.content[0]?.type === 'text' ? structuredResponse.content[0].text : '{}'
     const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
