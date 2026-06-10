@@ -24,14 +24,16 @@ After rotation, paste the new values directly into `.env` (not through chat) and
 
 ## 🟠 High — schedule
 
-### 2. Supabase Row Level Security disabled
-RLS policy templates are commented out at the bottom of `supabase/migrations/001_initial.sql`. The current `service_role` key bypasses RLS regardless, but **before any non-internal deployment**, RLS must be enabled and the server routes migrated to use `serverSupabaseClient` (per-user JWT) for read paths.
+### 2. Supabase Row Level Security — migration written, not yet applied
+`supabase/migrations/003_enable_rls.sql` (added 2026-06-10) enables RLS on `leads`, `search_terms`, `negative_keywords`, `audit_sessions`, `email_messages` with a single `authenticated`-role permissive policy per table. The file is checked in but **has not been applied** to the live project — apply via the Supabase dashboard SQL editor or `supabase db push` after installing the Supabase CLI and linking the CRM project.
+
+After the migration is applied, the server keeps working unchanged because `server/utils/supabase.ts` returns a service-role client that bypasses RLS. The defense-in-depth follow-up (separate commit) is to migrate read paths in `server/api/**` from the service-role client to `serverSupabaseClient(event)` (per-user JWT, RLS-enforced). Writes that intentionally cross users (system jobs, scheduled audits) can keep the service-role path but should be the exception, not the default.
 
 ### 3. MCP HTTP adapter uses private SDK internals
 `server/api/mcp/[server].post.ts` reads `_registeredTools` from the MCP SDK behind a `@ts-expect-error`. This will break on the next SDK breaking release. Replace with `StreamableHTTPServerTransport` from `@modelcontextprotocol/sdk`.
 
-### 4. No authentication on `/api/mcp/*`
-The MCP endpoints are server-side, but unauthenticated. Acceptable while the app is single-tenant and not publicly exposed; required before any external access.
+### 4. ~~No authentication on `/api/mcp/*`~~ — RESOLVED 2026-06-10
+The shared `server/middleware/auth.ts` now requires a valid Supabase session on every `/api/**` route, including `/api/mcp/[server]`. Remaining external-access work is tracked under #2 (RLS) and #3 (replace private SDK internals).
 
 ### 5. Pre-existing TypeScript errors block `nuxt typecheck` — **RESOLVED 2026-06-08**
 `npm run typecheck` previously reported 56 errors across `agents/`, `components/leads/LeadModal.vue`, `pages/campaigns/`, `pages/leads/`, `pages/negative-keywords/`, `pages/search-terms/`, `pages/social/`, and `server/mcp/*`. Resolution summary:

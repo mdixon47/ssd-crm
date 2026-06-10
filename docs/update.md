@@ -5,6 +5,45 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-10 (Authentication: login page + page/API guards + RLS migration)
+
+First-pass auth lands on top of the `@nuxtjs/supabase` v2 module that shipped on 2026-06-08. Email + password via Supabase Auth, closed sign-up (admin creates users in the Supabase dashboard), single role.
+
+New files:
+
+- `pages/login.vue` — slate/cyan-themed sign-in form. Honours a `?redirect=` query param.
+- `composables/useAuth.ts` — `signInWithPassword(email, password, redirect?)` + `signOut()` wrappers around `useSupabaseClient`.
+- `middleware/auth.global.ts` — page middleware. Redirects unauthenticated visitors to `/login` (preserving target path) and bounces authenticated users away from `/login`.
+- `server/utils/requireUser.ts` — throws `401` if `serverSupabaseUser(event)` returns null.
+- `server/middleware/auth.ts` — applies `requireUser` to every `/api/**` request. Bypasses `/api/_supabase/*` (used by the Supabase module's own cookie sync).
+- `supabase/migrations/003_enable_rls.sql` — turns RLS on for `leads`, `search_terms`, `negative_keywords`, `audit_sessions`, `email_messages` and grants `authenticated` role full CRUD via one permissive policy per table. Idempotent.
+
+Modified:
+
+- `layouts/default.vue` — sidebar bottom now shows the signed-in user's email and a "Sign out" button.
+
+Smoke test (local, against the dev `.env` Supabase project, no DB writes):
+
+| Probe | Expected | Got |
+|---|---|---|
+| `GET /api/leads` (no cookie) | 401 | ✅ 401 |
+| `GET /login` | 200 HTML | ✅ 200 |
+| `GET /` (protected page) | 302 → `/login` | ✅ 302 |
+| `POST /api/mcp/crm` (no cookie) | 401 | ✅ 401 |
+| `POST /api/ai/score-lead` (no cookie) | 401 | ✅ 401 |
+
+What this does NOT do (tracked separately):
+
+- The RLS migration is **checked in but not applied**. `issues.md #2` covers application via Supabase dashboard SQL editor or `supabase db push`.
+- `server/utils/supabase.ts` still returns a service-role client; reads will continue to bypass RLS until a follow-up migrates them to `serverSupabaseClient(event)`. This is documented under `issues.md #2`.
+- No public sign-up, password reset, or OAuth providers. Users are created in the Supabase dashboard.
+- No role/permission model — any authenticated user gets full app access.
+- No live login flow test (would require a created user + interactive browser). Server-side gate verified by curl; client-side flow (form → cookie → app) still needs human verification.
+
+Verification: `npm run lint` clean, `npx vue-tsc --noEmit` 0 errors, `npm run build` succeeds, 5/5 curl probes above.
+
+---
+
 ## 2026-06-08 (Runtime-deps bundle: Anthropic SDK + Nuxt Supabase module)
 
 Lands the two deferred runtime majors as one atomic bump after a clean pre-flight on `test/runtime-upgrades-eval`:
