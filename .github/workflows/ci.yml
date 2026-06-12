@@ -50,6 +50,9 @@ jobs:
         with:
           node-version: "22"
       - run: npm install --no-audit --no-fund
+      # tsconfig.json extends ./.nuxt/tsconfig.json; vitest resolves the
+      # extends chain at startup so nuxt prepare must run first.
+      - run: npx nuxt prepare
       - run: npm test
 
   build:
