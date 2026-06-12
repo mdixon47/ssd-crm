@@ -31,13 +31,22 @@ Migrations `003_enable_rls.sql` (blanket `authenticated_all` policies), `004_lea
 
 After the migrations are applied, server-side paths keep working unchanged — `server/utils/supabase.ts` returns a service-role client that bypasses RLS. The defense-in-depth follow-up is migrating read paths in `server/api/**` from the service-role client to `serverSupabaseClient(event)` (per-user JWT, RLS-enforced). Writes that intentionally cross users (system jobs, scheduled audits) can keep the service-role path.
 
-### 3. ~~MCP HTTP adapter uses private SDK internals~~ — RESOLVED 2026-06-12
+### 3. ~~esbuild high-severity CVEs failing `npm audit` in CI~~ — RESOLVED 2026-06-12
+`esbuild 0.17.0 – 0.28.0` carried two high-severity advisories:
+- **GHSA-gv7w-rqvm-qjhr** — missing binary integrity verification in the Deno module (RCE via `NPM_CONFIG_REGISTRY`)
+- **GHSA-g7r4-m6w7-qqqr** — arbitrary file read when running the dev server on Windows
+
+Six nested copies of esbuild (in `vite-node`, `@nuxt/vite-builder`, `nitropack`, `vitest`) were all in the vulnerable range. Because `nuxt` is listed in `dependencies` (not `devDependencies`), `--omit=dev` didn't exclude them. The `security.yml` `npm audit` job was exiting 1 on every CI run.
+
+Fix: added `"esbuild": ">=0.28.1"` to `package.json` `overrides` (same pattern as the existing `zod` override). All six copies deduplicate to `0.28.1` on any fresh `npm install`. `npm audit --audit-level=high --omit=dev` now exits 0.
+
+### 4. ~~MCP HTTP adapter uses private SDK internals~~ — RESOLVED 2026-06-12
 `server/api/mcp/[server].post.ts` previously read `_registeredTools` behind a `@ts-expect-error`. Replaced with `WebStandardStreamableHTTPServerTransport` (stateless, `enableJsonResponse: true`) from `@modelcontextprotocol/sdk`. The route now speaks the official MCP JSON-RPC protocol. See `update.md` (2026-06-12).
 
-### 4. ~~No authentication on `/api/mcp/*`~~ — RESOLVED 2026-06-10
-The shared `server/middleware/auth.ts` now requires a valid Supabase session on every `/api/**` route, including `/api/mcp/[server]`. Remaining external-access work is tracked under #2 (RLS) and #3 (replace private SDK internals).
+### 5. ~~No authentication on `/api/mcp/*`~~ — RESOLVED 2026-06-10
+The shared `server/middleware/auth.ts` now requires a valid Supabase session on every `/api/**` route, including `/api/mcp/[server]`. Remaining external-access work is tracked under #2 (RLS) and #4 (replace private SDK internals).
 
-### 5. Pre-existing TypeScript errors block `nuxt typecheck` — **RESOLVED 2026-06-08**
+### 6. Pre-existing TypeScript errors block `nuxt typecheck` — **RESOLVED 2026-06-08**
 `npm run typecheck` previously reported 56 errors across `agents/`, `components/leads/LeadModal.vue`, `pages/campaigns/`, `pages/leads/`, `pages/negative-keywords/`, `pages/search-terms/`, `pages/social/`, and `server/mcp/*`. Resolution summary:
 
 1. **MCP SDK `tool()` → `registerTool()` migration** (`server/mcp/crm`, `google-ads`, `linkedin-ads`, `meta-ads`). The deprecated `tool()` overload had ambiguous resolution between `ToolAnnotations` and `ZodRawShapeCompat`, producing TS2589 "excessively deep" instantiation. `registerTool` uses an explicit config object that bypasses the problematic inference path.
@@ -51,7 +60,7 @@ The shared `server/middleware/auth.ts` now requires a valid Supabase session on 
 
 ## 🟡 Medium — improvement work
 
-### 6. Nuxt 3.21.7 vite-node socket regression (workaround in place)
+### 7. Nuxt 3.21.7 vite-node socket regression (workaround in place)
 `@nuxt/vite-builder` 3.21.7 nests the IPC Unix socket in an extra `mkdtemp` directory, pushing the path past macOS's 104-byte `sockaddr_un.sun_path` limit.
 
 - **Workaround applied:** `scripts.dev` in `package.json` is `TMPDIR=/tmp nuxt dev`.
@@ -59,23 +68,23 @@ The shared `server/middleware/auth.ts` now requires a valid Supabase session on 
 - **Action when fixed:** once `@nuxt/vite-builder >= 3.21.8` is published on the `3x` tag (Dependabot will PR it), revert the script back to `"nuxt dev"`.
 - **Windows users:** inline `TMPDIR=...` won't work in `cmd`; switch to `cross-env` if needed.
 
-### 7. ~~Hard-coded Claude model identifiers~~ — RESOLVED 2026-06-12
+### 8. ~~Hard-coded Claude model identifiers~~ — RESOLVED 2026-06-12
 Model IDs are now centralised in `lib/models.ts` (`CLAUDE_HAIKU`, `CLAUDE_SONNET`, `CLAUDE_OPUS`). All 8 agent files and `server/api/ai/chat.post.ts` import from there. See `update.md` (2026-06-12).
 
-### 8. ~~`typescript.typeCheck` disabled~~ — RESOLVED 2026-06-12
+### 9. ~~`typescript.typeCheck` disabled~~ — RESOLVED 2026-06-12
 `nuxt.config.ts` now has `typeCheck: true`. The CI `typecheck` job was already blocking — no workflow change needed. See `update.md` (2026-06-12).
 
-### 9. ~~Zod validation not yet applied to remaining endpoints~~ — RESOLVED 2026-06-12
+### 10. ~~Zod validation not yet applied to remaining endpoints~~ — RESOLVED 2026-06-12
 Zod schemas added to `POST /api/ai/chat`, `POST /api/ai/label-terms`, and `POST /api/ai/score-lead`. The remaining endpoints either had Zod before this session (`/api/leads`, `/api/leads/extract`, `/api/email/*`, `/api/ai/email-strategy`, `/api/ai/social-strategy`) or accept no body (`/api/ai/analyze-campaigns`, `/api/ai/weekly-audit`). `PATCH /api/leads/[id]` still uses an `allowedFields` allowlist without Zod — tracked separately if needed. See `update.md` (2026-06-12).
 
-### 10. No per-IP rate limiting
+### 11. No per-IP rate limiting
 `/api/leads` and `/api/ai/*` are uncapped. Add IP-based throttling once the host is chosen (Vercel Edge Config or Upstash Ratelimit are the obvious candidates).
 
 ---
 
 ## ⚪ Low — nice to have
 
-### 11. Husky pre-commit hooks not configured
+### 12. Husky pre-commit hooks not configured
 Now that `git init` has been performed, this is unblocked. After installing:
 ```bash
 npm install -D husky lint-staged
@@ -83,16 +92,16 @@ npx husky init
 # add: npm run lint
 ```
 
-### 12. `CODEOWNERS` not created
+### 13. `CODEOWNERS` not created
 Requires team GitHub handles. Add `/.github/CODEOWNERS` once roles are defined.
 
-### 13. SARIF upload from `npm audit`
+### 14. SARIF upload from `npm audit`
 The current `npm audit` CI job fails the build but doesn't write findings to the Security tab. Convert output to SARIF for a centralised view.
 
-### ~~14. Duplicate lockfiles (`yarn.lock` + `package-lock.json`)~~ — **resolved 2026-06-07**
+### ~~15. Duplicate lockfiles (`yarn.lock` + `package-lock.json`)~~ — **resolved 2026-06-07**
 `yarn.lock` removed. See [`update.md`](./update.md).
 
-### 14b. `package-lock.json` is intentionally untracked
+### 15b. `package-lock.json` is intentionally untracked
 [npm/cli#4828](https://github.com/npm/cli/issues/4828): `package-lock.json` generated on macOS-arm64 only records the darwin-arm64 native bindings for `oxc-parser` (a Nuxt transitive dep). On Ubuntu / Netlify Linux runners, both `npm ci` and `npm install` then fail with `Cannot find module '@oxc-parser/binding-linux-x64-gnu'`. npm 11 also writes `{"optional": true}` phantom entries without a `version` field for uninstalled WASM optional bindings, which older npm versions reject as `Invalid Version:`.
 
 **Current stance**: `package-lock.json` is in `.gitignore`. Each environment regenerates a local lockfile via `npm install`:
@@ -107,23 +116,23 @@ The current `npm audit` CI job fails the build but doesn't write findings to the
 - Adopt pnpm or yarn4 (both record per-platform optional deps correctly).
 - Track [npm/cli#4828](https://github.com/npm/cli/issues/4828) for an upstream fix.
 
-### 14c. `Dependency review` job removed (2026-06-08)
+### 15c. `Dependency review` job removed (2026-06-08)
 The `actions/dependency-review-action@v5` was removed from `security.yml`. Rationale: it required GitHub Advanced Security on private repos (paid), ran only on PR diffs, and its CVE coverage fully overlapped with the existing `npm audit` job which runs on every push and PR. Re-adding it is sensible only if GHAS is enabled and license-checking is added.
 
-### 14d. `CodeQL` job is non-blocking until Code scanning is enabled
+### 15d. `CodeQL` job is non-blocking until Code scanning is enabled
 The CodeQL upload step needs *Code scanning* turned on in repo settings (*Settings → Code security and analysis → Code scanning*). Until that toggle is on, the analyze step 403s. Currently `continue-on-error: true`. Once Code scanning is enabled, drop that flag so findings can gate merges.
 
-### 15. No unit tests
-No test framework is wired up. Recommended scope for a first pass:
-- `LeadInsertSchema` happy path + each rejection branch.
-- `runCampaignOptimizerAgent` / `runWeeklyAuditAgent` fallback when `MAX_ITERATIONS` is reached.
-- `stores/leads.ts` defensive `?? []` paths.
-- `pages/index.vue` KPI computations with empty / zero-denominator data.
+### 16. ~~No unit tests~~ — PARTIALLY RESOLVED 2026-06-12
+Vitest is wired up (`npm test`, `npm run test:watch`). First spec covers `LeadExtractorAgent` (7 cases: happy path, fence stripping, fallback, sourceHint, coercion, truncation, warnings). No network or key required — Anthropic client is stubbed. Coverage is narrow; recommended next additions:
+- `LeadInsertSchema` happy path + each rejection branch
+- `runCampaignOptimizerAgent` / `runWeeklyAuditAgent` fallback when `MAX_ITERATIONS` is reached
+- `stores/leads.ts` defensive `?? []` paths
+- `pages/index.vue` KPI computations with empty / zero-denominator data
 
-### 16. `punycode` deprecation warning on startup
+### 17. `punycode` deprecation warning on startup
 `DEP0040: The punycode module is deprecated.` Emitted from a transitive dep (likely `whatwg-url`). Cosmetic — no action needed until Node removes the module.
 
-### 17. zod v4 upgrade — eligible to attempt (Dependabot PR #6 closed 2026-06-08)
+### 18. zod v4 upgrade — eligible to attempt (Dependabot PR #6 closed 2026-06-08)
 The 2026-06-08 baseline-fix (see `update.md`) unblocks v4 evaluation. Source-level migration is required, not just a version bump: `z.string().email()` → `z.email()` (5 sites), `z.string().uuid()` → `z.uuid()` (1 site), and any reader of `ZodError.errors` must move to `.issues`. Affected files: `server/api/{email/draft,email/send,leads/index,ai/email-strategy,ai/social-strategy}.post.ts` and `server/mcp/*/index.ts`. **Exit criteria**: unignore via Dependabot or bump locally, apply renames, run `npm run typecheck` + `npm run build`, decide whether to keep the `overrides.zod` pin (the MCP SDK ships v4 natively, so the override likely becomes unnecessary).
 
 ### 19. Runtime smoke-test debt on the 2026-06-08 runtime-deps bundle
