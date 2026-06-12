@@ -1,7 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
-  devtools: { enabled: true },
+  devtools: { enabled: process.env.NODE_ENV !== 'production' },
 
   modules: [
     '@nuxtjs/tailwindcss',
@@ -68,7 +68,18 @@ export default defineNuxtConfig({
 
   typescript: {
     strict: true,
-    typeCheck: true,
+    // typeCheck runs vue-tsc concurrently with Vite and doubles peak heap usage.
+    // Run type checking separately (npm run typecheck) rather than during build.
+    typeCheck: false,
+  },
+
+  vite: {
+    build: {
+      // Source maps are the biggest single memory consumer in Rollup — skip in prod.
+      sourcemap: false,
+      // Skips the gzip/brotli size estimation pass (saves ~200 MB peak heap).
+      reportCompressedSize: false,
+    },
   },
 
   tailwindcss: {
