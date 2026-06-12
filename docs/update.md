@@ -5,6 +5,18 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-12 (Test infra: vitest + LeadExtractorAgent spec)
+
+Bootstrapped the project's first unit-test setup.
+
+- Added `vitest` (^2) as a devDependency. Config (`vitest.config.ts`) is minimal: Node environment, `tests/**/*.test.ts` glob, and a `~` → repo-root alias so test files can import via the same path as Nuxt source.
+- New scripts: `npm test` (CI mode) and `npm run test:watch`.
+- First spec: `tests/agents/LeadExtractorAgent.test.ts` — 7 cases covering happy-path JSON, ```json fence stripping, unparseable fallback, `sourceHint` defaulting, empty-string-to-undefined coercion, 12k-char input truncation, and warning passthrough. The Anthropic client is stubbed with `vi.fn()` — no network, no key needed.
+- Out of scope: Nuxt-aware tests (auto-imports, Vue SFC compilation). Those need `@nuxt/test-utils` and a much heavier runtime; deferred until there's a Vue component worth covering with one.
+- CI: new `Test` job added to `.github/workflows/ci.yml`, parallel to `Lint` and `Typecheck`. `Build` now gates on all three. Runs `npm test` on every push and PR to `main`.
+
+---
+
 ## 2026-06-12 (Lead intake: assignment, Bark source, AI email extractor)
 
 Four-in-one lead-intake pass:
