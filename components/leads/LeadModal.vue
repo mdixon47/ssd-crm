@@ -73,6 +73,22 @@
           </div>
         </div>
 
+        <!-- Assignee -->
+        <div>
+          <label for="modal-assignee" class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Assignee</label>
+          <input
+            id="modal-assignee"
+            v-model="form.assignee"
+            list="modal-assignee-list"
+            placeholder="Unassigned"
+            class="w-full rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none"
+            style="background:#070c18;border:1px solid rgba(148,163,184,0.15)"
+          >
+          <datalist id="modal-assignee-list">
+            <option v-for="a in leadsStore.distinctAssignees" :key="a" :value="a" />
+          </datalist>
+        </div>
+
         <div>
           <label for="modal-notes" class="text-xs font-semibold text-slate-500 uppercase block mb-1.5">Notes</label>
           <textarea id="modal-notes" v-model="form.notes" rows="3" class="w-full rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none resize-none" style="background:#070c18;border:1px solid rgba(148,163,184,0.15)" />
@@ -127,6 +143,7 @@ const form = reactive({
   stage: props.lead.stage,
   revenue: props.lead.revenue,
   notes: props.lead.notes || '',
+  assignee: props.lead.assignee || '',
 })
 
 const aiScore = ref<Awaited<ReturnType<typeof scoreLead>>>(null)

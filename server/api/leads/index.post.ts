@@ -19,7 +19,7 @@ const LeadInsertSchema = z.object({
   interest: z.string().trim().max(500).optional(),
   stage: z.enum(LEAD_STAGES).default('New Lead'),
   qualified: z.enum(['yes', 'no', 'partial', '']).default(''),
-  source: z.enum(['google', 'facebook', 'instagram', 'linkedin', 'email', 'organic', '']).optional(),
+  source: z.enum(['google', 'facebook', 'instagram', 'linkedin', 'email', 'organic', 'bark', '']).optional(),
   campaign: z.string().trim().max(160).optional(),
   keyword: z.string().trim().max(160).optional(),
   content: z.string().trim().max(160).optional(),
@@ -28,6 +28,7 @@ const LeadInsertSchema = z.object({
   revenue: z.number().nonnegative().max(10_000_000).default(0),
   notes: z.string().trim().max(4000).optional(),
   lead_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  assignee: z.string().trim().max(120).optional(),
 })
 
 export default defineEventHandler(async (event) => {

@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   if (!id) throw createError({ statusCode: 400, message: 'Lead ID is required' })
 
   // Only allow updating safe fields
-  const allowedFields = ['stage', 'qualified', 'revenue', 'notes', 'title', 'phone', 'interest']
+  const allowedFields = ['stage', 'qualified', 'revenue', 'notes', 'title', 'phone', 'interest', 'assignee']
   const update: Record<string, unknown> = {}
   for (const field of allowedFields) {
     if (body[field] !== undefined) update[field] = body[field]

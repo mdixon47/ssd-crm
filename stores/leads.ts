@@ -56,6 +56,17 @@ export const useLeadsStore = defineStore('leads', () => {
     ).length,
   )
 
+  // Distinct non-empty assignees across all loaded leads. Feeds the
+  // <datalist> in the lead forms so previously-used names autocomplete.
+  const distinctAssignees = computed(() => {
+    const set = new Set<string>()
+    for (const l of leads.value) {
+      const a = (l.assignee ?? '').trim()
+      if (a) set.add(a)
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  })
+
   // ── CRUD ─────────────────────────────────────────────────
   async function fetchLeads() {
     loading.value = true
@@ -113,6 +124,7 @@ export const useLeadsStore = defineStore('leads', () => {
     filterCampaign, filterStage, filterSearch,
     filteredLeads, leadsByStage,
     totalRevenue, qualifiedCount, bookedCount,
+    distinctAssignees,
     STAGES,
     fetchLeads, addLead, updateLead, getById,
   }

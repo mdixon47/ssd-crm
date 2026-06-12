@@ -5,6 +5,41 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-12 (Lead intake: assignment, Bark source, AI email extractor)
+
+Four-in-one lead-intake pass:
+
+1. **New Lead** — confirmed already complete (`pages/leads/add.vue`, `stores/leads.ts → addLead()`, `POST /api/leads`). No changes needed.
+2. **Lead assignment (A2 model)** — new free-text `assignee` column. UI is an `<input list>` backed by a `<datalist>` of distinct existing values, so the field self-bootstraps as the team uses it. No identity coupling (no FK to `auth.users`) — keeps the closed single-role model intact and upgrades cleanly later.
+3. **Bark leads** — `'bark'` added to `LeadSource` union, Zod insert schema, and the Traffic Source select on `pages/leads/add.vue`. The `source` column in Postgres is unconstrained text, so no DB enum change was needed.
+4. **Email leads scraping (B1+C1 collapsed)** — single "Import from email" tool covers Bark notifications, contact-form forwards, and manual referrals. Paste raw email → AI extracts fields → fills the existing add-lead form → human reviews → save via the existing validated path. No new infra (no inbound webhook / IMAP / cron).
+
+New files:
+
+- `agents/LeadExtractorAgent.ts` — Claude Haiku extractor. Returns `{ fname, lname, email, phone, org, title, interest, source, notes, warnings[] }`. Source is auto-inferred (bark / organic / email) when unhinted.
+- `server/api/leads/extract.post.ts` — `POST /api/leads/extract { rawText, sourceHint? }`. Validated with Zod (20–20 000 chars). Protected by the global `/api/**` auth middleware.
+- `supabase/migrations/004_lead_assignee.sql` — `alter table leads add column if not exists assignee text` + index. Idempotent.
+
+Modified:
+
+- `types/index.ts` — `LeadSource` gains `'bark'`; `Lead` gains optional `assignee`.
+- `server/api/leads/index.post.ts` — Zod schema accepts `'bark'` source and optional `assignee`.
+- `server/api/leads/[id].patch.ts` — `allowedFields` extended with `assignee`.
+- `stores/leads.ts` — new `distinctAssignees` computed feeding the UI datalist.
+- `pages/leads/add.vue` — collapsible "Import from email" block at top; Bark option in source select; assignee input with datalist; `fetchLeads()` on mount so the datalist is populated.
+- `components/leads/LeadModal.vue` — assignee input on the Details tab, saved through the existing PATCH path.
+
+Behaviour notes:
+
+- Extractor never overwrites manually-filled fields. The user can paste an email, then edit individual fields before pasting another, and the second extraction will only fill blanks.
+- The Bark email format is not parsed deterministically — extraction quality depends on the model. `warnings[]` is surfaced inline so the human knows which fields to double-check.
+
+Verification: `npm run lint` clean, `npx vue-tsc --noEmit` 0 errors, `npm run build` succeeds. No live API smoke-test of `/api/leads/extract` (would require a real Anthropic key + session cookie); type-clean only.
+
+Migrations status: `003_enable_rls.sql` and `004_lead_assignee.sql` are checked in but **not applied** to the live project. Apply both in numeric order before exercising the assignee UI in production. See `issues.md #2`.
+
+---
+
 ## 2026-06-10 (Authentication: login page + page/API guards + RLS migration)
 
 First-pass auth lands on top of the `@nuxtjs/supabase` v2 module that shipped on 2026-06-08. Email + password via Supabase Auth, closed sign-up (admin creates users in the Supabase dashboard), single role.

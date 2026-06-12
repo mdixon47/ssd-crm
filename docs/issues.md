@@ -25,7 +25,7 @@ After rotation, paste the new values directly into `.env` (not through chat) and
 ## 🟠 High — schedule
 
 ### 2. Supabase Row Level Security — migration written, not yet applied
-`supabase/migrations/003_enable_rls.sql` (added 2026-06-10) enables RLS on `leads`, `search_terms`, `negative_keywords`, `audit_sessions`, `email_messages` with a single `authenticated`-role permissive policy per table. The file is checked in but **has not been applied** to the live project — apply via the Supabase dashboard SQL editor or `supabase db push` after installing the Supabase CLI and linking the CRM project.
+`supabase/migrations/003_enable_rls.sql` (added 2026-06-10) enables RLS on `leads`, `search_terms`, `negative_keywords`, `audit_sessions`, `email_messages` with a single `authenticated`-role permissive policy per table. `supabase/migrations/004_lead_assignee.sql` (added 2026-06-12) adds the `assignee` column required by the new lead-assignment UI. Both files are checked in but **have not been applied** to the live project — apply via the Supabase dashboard SQL editor or `supabase db push` after installing the Supabase CLI and linking the CRM project. Apply in numeric order (003, then 004).
 
 After the migration is applied, the server keeps working unchanged because `server/utils/supabase.ts` returns a service-role client that bypasses RLS. The defense-in-depth follow-up (separate commit) is to migrate read paths in `server/api/**` from the service-role client to `serverSupabaseClient(event)` (per-user JWT, RLS-enforced). Writes that intentionally cross users (system jobs, scheduled audits) can keep the service-role path but should be the exception, not the default.
 

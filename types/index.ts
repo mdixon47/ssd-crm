@@ -16,7 +16,7 @@ export type LeadStage =
   | 'Not a Fit'
   | 'Lost/No Response'
 
-export type LeadSource = 'google' | 'facebook' | 'instagram' | 'linkedin' | 'email' | 'organic' | ''
+export type LeadSource = 'google' | 'facebook' | 'instagram' | 'linkedin' | 'email' | 'organic' | 'bark' | ''
 
 export type QualifiedStatus = 'yes' | 'no' | 'partial' | ''
 
@@ -42,6 +42,7 @@ export interface Lead {
   revenue: number
   notes?: string
   lead_date: string
+  assignee?: string
 }
 
 export type LeadInsert = Omit<Lead, 'id' | 'created_at' | 'updated_at'>

@@ -5,6 +5,43 @@
       <h1 class="text-2xl font-bold text-cyan-400">Add New Lead</h1>
     </div>
 
+    <!-- Import from email -->
+    <div class="rounded-xl p-4 mb-4" style="background:#0d1628;border:1px solid rgba(148,163,184,0.1)">
+      <button
+        type="button"
+        class="w-full flex items-center justify-between text-sm font-semibold text-cyan-400 hover:text-cyan-300 transition-colors"
+        @click="importOpen = !importOpen"
+      >
+        <span>✨ Import from email (Bark / contact form / forwarded message)</span>
+        <span class="text-slate-500 text-xs">{{ importOpen ? '▾' : '▸' }}</span>
+      </button>
+      <div v-if="importOpen" class="mt-3 space-y-3">
+        <textarea
+          v-model="importText"
+          rows="6"
+          placeholder="Paste the full email body here…"
+          class="w-full rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none resize-y"
+          style="background:#070c18;border:1px solid rgba(148,163,184,0.15)"
+          :disabled="extracting"
+        />
+        <div class="flex items-center gap-3">
+          <button
+            type="button"
+            class="px-4 py-2 rounded-lg text-sm font-semibold text-cyan-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            style="background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.3)"
+            :disabled="extracting || importText.trim().length < 20"
+            @click="extractFromEmail"
+          >
+            {{ extracting ? 'Extracting…' : 'Extract lead' }}
+          </button>
+          <span v-if="importError" class="text-rose-400 text-xs">{{ importError }}</span>
+          <span v-else-if="importWarnings.length" class="text-amber-400 text-xs">
+            {{ importWarnings.length }} field(s) need review — see notes below
+          </span>
+        </div>
+      </div>
+    </div>
+
     <form class="rounded-xl p-6 space-y-6" style="background:#0d1628;border:1px solid rgba(148,163,184,0.1)" @submit.prevent="submit">
       <section>
         <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wide mb-4" style="border-bottom:1px solid rgba(148,163,184,0.08);padding-bottom:0.75rem">Contact Information</h2>
@@ -53,7 +90,22 @@
               <option value="linkedin">LinkedIn</option>
               <option value="email">Email</option>
               <option value="organic">Organic</option>
+              <option value="bark">Bark</option>
             </select>
+          </div>
+          <div>
+            <label for="lead-assignee" class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase">Assignee</label>
+            <input
+              id="lead-assignee"
+              v-model="form.assignee"
+              list="add-assignee-list"
+              placeholder="Unassigned"
+              class="w-full rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none"
+              style="background:#070c18;border:1px solid rgba(148,163,184,0.15)"
+            >
+            <datalist id="add-assignee-list">
+              <option v-for="a in leadsStore.distinctAssignees" :key="a" :value="a" />
+            </datalist>
           </div>
           <div><label for="lead-campaign" class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase">Campaign</label><input id="lead-campaign" v-model="form.campaign" class="w-full rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none" style="background:#070c18;border:1px solid rgba(148,163,184,0.15)"></div>
           <div><label for="lead-keyword" class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase">Keyword (utm_term)</label><input id="lead-keyword" v-model="form.keyword" class="w-full rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none" style="background:#070c18;border:1px solid rgba(148,163,184,0.15)"></div>
@@ -90,11 +142,27 @@
 import { useLeadsStore } from '~/stores/leads'
 import type { LeadStage, QualifiedStatus, LeadSource } from '~/types'
 
+interface ExtractedLeadResponse {
+  fname?: string
+  lname?: string
+  email?: string
+  phone?: string
+  org?: string
+  title?: string
+  interest?: string
+  source?: LeadSource
+  notes?: string
+  warnings?: string[]
+}
+
 const router = useRouter()
 const leadsStore = useLeadsStore()
 const saving = ref(false)
 const error = ref('')
 const aiScore = ref<Record<string, unknown> | null>(null)
+
+// Populate the assignee datalist with prior values.
+if (leadsStore.leads.length === 0) leadsStore.fetchLeads()
 
 const STAGES: LeadStage[] = ['New Lead','Contacted','Booked Consultation','Qualified','Proposal Sent','Purchased Course','Became Consulting Client','Not a Fit','Lost/No Response']
 
@@ -104,7 +172,45 @@ const form = reactive({
   keyword: '', gclid: '', landing: '', revenue: 0, notes: '',
   qualified: '' as QualifiedStatus,
   lead_date: new Date().toISOString().slice(0, 10),
+  assignee: '',
 })
+
+// ── Import from email ─────────────────────────────────────
+const importOpen = ref(false)
+const importText = ref('')
+const extracting = ref(false)
+const importError = ref('')
+const importWarnings = ref<string[]>([])
+
+async function extractFromEmail() {
+  extracting.value = true
+  importError.value = ''
+  importWarnings.value = []
+  try {
+    const res = await $fetch<{ data: ExtractedLeadResponse }>('/api/leads/extract', {
+      method: 'POST',
+      body: { rawText: importText.value },
+    })
+    const x = res.data
+    // Only overwrite empty form fields so the user's manual edits win.
+    if (!form.fname && x.fname) form.fname = x.fname
+    if (!form.lname && x.lname) form.lname = x.lname
+    if (!form.email && x.email) form.email = x.email
+    if (!form.phone && x.phone) form.phone = x.phone
+    if (!form.org && x.org) form.org = x.org
+    if (!form.title && x.title) form.title = x.title
+    if (!form.interest && x.interest) form.interest = x.interest
+    if (!form.source && x.source) form.source = x.source
+    if (!form.notes && x.notes) form.notes = x.notes
+    importWarnings.value = x.warnings ?? []
+  }
+  catch (e: unknown) {
+    importError.value = e instanceof Error ? e.message : 'Extraction failed'
+  }
+  finally {
+    extracting.value = false
+  }
+}
 
 async function submit() {
   saving.value = true
