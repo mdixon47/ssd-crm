@@ -100,5 +100,6 @@ const navLinks = [
   { to: '/negative-keywords', label: 'Negative Keywords', icon: '🚫' },
   { to: '/weekly-audit', label: 'Weekly Audit', icon: '✅' },
   { to: '/social', label: 'Social Media', icon: '📱' },
+  { to: '/help', label: 'Help', icon: '❓' },
 ]
 </script>
