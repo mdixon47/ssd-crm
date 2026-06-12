@@ -42,6 +42,7 @@
     "vue-tsc": "^3.3.3"
   },
   "overrides": {
-    "zod": "$zod"
+    "zod": "$zod",
+    "esbuild": ">=0.28.1"
   }
 }
