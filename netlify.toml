@@ -14,6 +14,8 @@
   NPM_FLAGS = "--no-audit --no-fund"
   # macOS-only workaround in dev (see docs/issues.md). Harmless on Linux runners.
   TMPDIR = "/tmp"
+  # Raise Node heap limit for large Nuxt/Vite builds (default ~1.5 GB hits OOM on Netlify).
+  NODE_OPTIONS = "--max-old-space-size=4096"
 
 # Preview deploys (branch + PR) get the same build pipeline as production.
 [context.production.environment]
