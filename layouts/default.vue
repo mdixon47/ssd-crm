@@ -50,14 +50,18 @@
         class="px-4 py-3 flex items-center gap-2.5 flex-shrink-0"
         style="border-top:1px solid rgba(148,163,184,0.08)"
       >
-        <div class="flex-1 min-w-0">
+        <NuxtLink
+          to="/account"
+          class="flex-1 min-w-0 no-underline rounded-md px-1 -mx-1 py-1 hover:bg-cyan-500/5 transition-colors"
+          :title="`Account — ${user.email || ''}`"
+        >
           <div class="text-slate-500 text-[10px] uppercase tracking-wider leading-tight">
             Signed in
           </div>
-          <div class="text-slate-300 text-xs font-medium truncate" :title="user.email || ''">
-            {{ user.email }}
+          <div class="text-slate-300 text-xs font-medium truncate">
+            {{ displayName || user.email }}
           </div>
-        </div>
+        </NuxtLink>
         <button
           class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-rose-400 text-xs font-medium transition-colors"
           style="border:1px solid rgba(148,163,184,0.12)"
@@ -86,7 +90,7 @@
 import AIPanel from '~/components/ai/AIPanel.vue'
 
 const aiPanelOpen = ref(false)
-const { user, loading: authLoading, signOut } = useAuth()
+const { user, loading: authLoading, signOut, displayName } = useAuth()
 
 const navLinks = [
   { to: '/', label: 'Dashboard', icon: '📊' },
