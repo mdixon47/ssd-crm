@@ -9,6 +9,7 @@
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { SocialPlatformData, SocialStrategyOutput } from '~/types'
+import { CLAUDE_OPUS, CLAUDE_SONNET } from '~/lib/models'
 
 const PLATFORM_NAMES: Record<string, string> = { fb: 'Facebook', ig: 'Instagram', li: 'LinkedIn' }
 
@@ -40,7 +41,7 @@ export async function runSocialMediaAgent(
   platformKey: 'fb' | 'ig' | 'li',
   platform: SocialPlatformData,
 ): Promise<SocialStrategyOutput> {
-  const modelUsed = 'claude-opus-4-6'
+  const modelUsed = CLAUDE_OPUS
   let totalTokens = 0
 
   const tools: Anthropic.Tool[] = [
@@ -122,7 +123,7 @@ Use the tools to gather data, then return:
 
   // Structured JSON conversion
   const structuredResponse = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: CLAUDE_SONNET,
     max_tokens: 3000,
     system: 'Return ONLY valid JSON. No markdown. Follow the schema exactly.',
     messages: [

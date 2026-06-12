@@ -10,6 +10,7 @@
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { Lead, EmailStrategyOutput } from '~/types'
+import { CLAUDE_OPUS, CLAUDE_SONNET } from '~/lib/models'
 
 const SYSTEM_PROMPT = `You are SSD Consulting's outreach strategist. Your job is to plan the next wave of outreach emails to leads in the CRM.
 
@@ -42,7 +43,7 @@ export async function runEmailStrategistAgent(
 ): Promise<EmailStrategyOutput> {
   const maxRecipients = options?.maxRecipients ?? 8
   const focus = options?.focus
-  const modelUsed = 'claude-opus-4-6'
+  const modelUsed = CLAUDE_OPUS
   let totalTokens = 0
 
   const tools: Anthropic.Tool[] = [
@@ -124,7 +125,7 @@ Use the tools to find the best recipients, then draft a personalized email for e
 
   // Convert to structured JSON
   const structuredResponse = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: CLAUDE_SONNET,
     max_tokens: 4096,
     system: 'Return ONLY valid JSON. No markdown. Follow the schema exactly.',
     messages: [

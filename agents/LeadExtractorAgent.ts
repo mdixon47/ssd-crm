@@ -6,6 +6,7 @@
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { LeadSource } from '~/types'
+import { CLAUDE_HAIKU } from '~/lib/models'
 
 export interface ExtractedLead {
   fname: string
@@ -47,7 +48,7 @@ export async function runLeadExtractorAgent(
   rawText: string,
   sourceHint?: LeadSource,
 ): Promise<ExtractedLead> {
-  const modelUsed = 'claude-haiku-4-5-20251001'
+  const modelUsed = CLAUDE_HAIKU
 
   const response = await client.messages.create({
     model: modelUsed,

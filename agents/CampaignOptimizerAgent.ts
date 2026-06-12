@@ -7,6 +7,7 @@
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { Campaign, Lead } from '~/types'
+import { CLAUDE_OPUS } from '~/lib/models'
 
 export interface CampaignRecommendation {
   campaign: string
@@ -98,7 +99,7 @@ Please use the available tools to get detailed data, then provide structured rec
   ]
 
   let totalTokens = 0
-  const modelUsed = 'claude-opus-4-6'
+  const modelUsed = CLAUDE_OPUS
 
   // Agentic loop — runs until Claude stops calling tools (capped)
   const MAX_ITERATIONS = 10

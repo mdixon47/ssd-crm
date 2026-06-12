@@ -24,13 +24,15 @@ After rotation, paste the new values directly into `.env` (not through chat) and
 
 ## 🟠 High — schedule
 
-### 2. Supabase Row Level Security — migration written, not yet applied
-`supabase/migrations/003_enable_rls.sql` (added 2026-06-10) enables RLS on `leads`, `search_terms`, `negative_keywords`, `audit_sessions`, `email_messages` with a single `authenticated`-role permissive policy per table. `supabase/migrations/004_lead_assignee.sql` (added 2026-06-12) adds the `assignee` column required by the new lead-assignment UI. Both files are checked in but **have not been applied** to the live project — apply via the Supabase dashboard SQL editor or `supabase db push` after installing the Supabase CLI and linking the CRM project. Apply in numeric order (003, then 004).
+### 2. Supabase Row Level Security — migrations written, not yet applied
+Migrations `003_enable_rls.sql` (blanket `authenticated_all` policies), `004_lead_assignee.sql` (assignee column), `005_admin_users.sql`, `006_profiles.sql`, and `007_rls_multi_user.sql` (2026-06-12 — adds `created_by` tracking + granular per-operation policies for multi-user deployment) are all checked in but **have not been applied** to the live project. Apply via the Supabase dashboard SQL editor or `supabase db push` in numeric order (003 → 004 → 005 → 006 → 007).
 
-After the migration is applied, the server keeps working unchanged because `server/utils/supabase.ts` returns a service-role client that bypasses RLS. The defense-in-depth follow-up (separate commit) is to migrate read paths in `server/api/**` from the service-role client to `serverSupabaseClient(event)` (per-user JWT, RLS-enforced). Writes that intentionally cross users (system jobs, scheduled audits) can keep the service-role path but should be the exception, not the default.
+`007_rls_multi_user.sql` adds `created_by uuid references auth.users(id) default auth.uid()` to all five core tables and replaces each `authenticated_all` policy with four operation-specific policies: SELECT + UPDATE open to all authenticated users (shared-team CRM), INSERT enforced to `created_by = auth.uid()`, DELETE restricted to the row owner or any `admin_users` member.
 
-### 3. MCP HTTP adapter uses private SDK internals
-`server/api/mcp/[server].post.ts` reads `_registeredTools` from the MCP SDK behind a `@ts-expect-error`. This will break on the next SDK breaking release. Replace with `StreamableHTTPServerTransport` from `@modelcontextprotocol/sdk`.
+After the migrations are applied, server-side paths keep working unchanged — `server/utils/supabase.ts` returns a service-role client that bypasses RLS. The defense-in-depth follow-up is migrating read paths in `server/api/**` from the service-role client to `serverSupabaseClient(event)` (per-user JWT, RLS-enforced). Writes that intentionally cross users (system jobs, scheduled audits) can keep the service-role path.
+
+### 3. ~~MCP HTTP adapter uses private SDK internals~~ — RESOLVED 2026-06-12
+`server/api/mcp/[server].post.ts` previously read `_registeredTools` behind a `@ts-expect-error`. Replaced with `WebStandardStreamableHTTPServerTransport` (stateless, `enableJsonResponse: true`) from `@modelcontextprotocol/sdk`. The route now speaks the official MCP JSON-RPC protocol. See `update.md` (2026-06-12).
 
 ### 4. ~~No authentication on `/api/mcp/*`~~ — RESOLVED 2026-06-10
 The shared `server/middleware/auth.ts` now requires a valid Supabase session on every `/api/**` route, including `/api/mcp/[server]`. Remaining external-access work is tracked under #2 (RLS) and #3 (replace private SDK internals).
@@ -57,16 +59,14 @@ The shared `server/middleware/auth.ts` now requires a valid Supabase session on 
 - **Action when fixed:** once `@nuxt/vite-builder >= 3.21.8` is published on the `3x` tag (Dependabot will PR it), revert the script back to `"nuxt dev"`.
 - **Windows users:** inline `TMPDIR=...` won't work in `cmd`; switch to `cross-env` if needed.
 
-### 7. Hard-coded Claude model identifiers
-Model IDs (`claude-opus-4-6`, `claude-sonnet-4-6`, `claude-haiku-4-5-20251001`) are duplicated across `agents/*.ts`. Centralise into a single `MODELS` constant in `server/utils/anthropic.ts` so future upgrades require one edit.
+### 7. ~~Hard-coded Claude model identifiers~~ — RESOLVED 2026-06-12
+Model IDs are now centralised in `lib/models.ts` (`CLAUDE_HAIKU`, `CLAUDE_SONNET`, `CLAUDE_OPUS`). All 8 agent files and `server/api/ai/chat.post.ts` import from there. See `update.md` (2026-06-12).
 
-### 8. `typescript.typeCheck` disabled
-`nuxt.config.ts` has `typescript.typeCheck: false`. The strict-mode issues from the code review are resolved, so this can be flipped back to `true` once `npm run typecheck` is green locally. CI already runs typecheck in a separate job.
+### 8. ~~`typescript.typeCheck` disabled~~ — RESOLVED 2026-06-12
+`nuxt.config.ts` now has `typeCheck: true`. The CI `typecheck` job was already blocking — no workflow change needed. See `update.md` (2026-06-12).
 
-### 9. Zod validation not yet applied to remaining endpoints
-Only `POST /api/leads` uses a Zod schema. Apply equivalent schemas to:
-- `PATCH /api/leads/[id]`
-- `POST /api/ai/chat`, `POST /api/ai/optimize-campaign`, `POST /api/ai/label-search-terms`, `POST /api/ai/weekly-audit`
+### 9. ~~Zod validation not yet applied to remaining endpoints~~ — RESOLVED 2026-06-12
+Zod schemas added to `POST /api/ai/chat`, `POST /api/ai/label-terms`, and `POST /api/ai/score-lead`. The remaining endpoints either had Zod before this session (`/api/leads`, `/api/leads/extract`, `/api/email/*`, `/api/ai/email-strategy`, `/api/ai/social-strategy`) or accept no body (`/api/ai/analyze-campaigns`, `/api/ai/weekly-audit`). `PATCH /api/leads/[id]` still uses an `allowedFields` allowlist without Zod — tracked separately if needed. See `update.md` (2026-06-12).
 
 ### 10. No per-IP rate limiting
 `/api/leads` and `/api/ai/*` are uncapped. Add IP-based throttling once the host is chosen (Vercel Edge Config or Upstash Ratelimit are the obvious candidates).

@@ -1,8 +1,11 @@
 // ============================================================
 // MCP HTTP Gateway
-// Routes POST /api/mcp/:server to the appropriate MCP server.
-// Accepts { tool: string, arguments: Record<string, unknown> }
+// Routes MCP JSON-RPC requests to the appropriate MCP server.
+// Operates in stateless mode with JSON responses (no SSE).
+// Clients send proper MCP protocol messages:
+//   { jsonrpc: "2.0", method: "tools/call", params: { name, arguments }, id }
 // ============================================================
+import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import { createCRMMCPServer } from '~/server/mcp/crm/index'
 import { createGoogleAdsMCPServer } from '~/server/mcp/google-ads/index'
 import { createMetaAdsMCPServer } from '~/server/mcp/meta-ads/index'
@@ -10,13 +13,7 @@ import { createLinkedInAdsMCPServer } from '~/server/mcp/linkedin-ads/index'
 
 export default defineEventHandler(async (event) => {
   const serverName = getRouterParam(event, 'server') as string
-  const body = await readBody(event)
 
-  if (!body.tool) {
-    throw createError({ statusCode: 400, message: 'tool name is required' })
-  }
-
-  // Get the right MCP server
   let mcpServer
   switch (serverName) {
     case 'crm':
@@ -35,28 +32,13 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, message: `MCP server not found: ${serverName}` })
   }
 
-  // Call the tool directly via the server's tool registry
-  // This is a simplified HTTP adapter — in production use StreamableHTTPServerTransport
-  try {
-    // @ts-expect-error — accessing internal tool registry for HTTP adapter
-    const tools = mcpServer._registeredTools
-    const tool = tools?.[body.tool]
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined, // stateless — each request is independent
+    enableJsonResponse: true,      // return JSON, not SSE
+  })
 
-    if (!tool) {
-      throw createError({
-        statusCode: 404,
-        message: `Tool "${body.tool}" not found in server "${serverName}"`,
-      })
-    }
+  await mcpServer.connect(transport)
 
-    const result = await tool.callback(body.arguments ?? {})
-    return result
-  }
-  catch (e: unknown) {
-    if (e instanceof Error && 'statusCode' in e) throw e
-    throw createError({
-      statusCode: 500,
-      message: e instanceof Error ? e.message : `Tool call failed`,
-    })
-  }
+  const webRequest = toWebRequest(event)
+  return transport.handleRequest(webRequest)
 })

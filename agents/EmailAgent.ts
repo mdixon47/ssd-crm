@@ -5,6 +5,7 @@
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { Lead } from '~/types'
+import { CLAUDE_HAIKU } from '~/lib/models'
 
 export interface EmailDraftResult {
   subject: string
@@ -32,7 +33,7 @@ export async function runEmailAgent(
   lead: Partial<Lead>,
   purpose?: string,
 ): Promise<EmailDraftResult> {
-  const modelUsed = 'claude-haiku-4-5-20251001'
+  const modelUsed = CLAUDE_HAIKU
 
   const leadContext = `
 Name: ${lead.fname} ${lead.lname}

@@ -7,6 +7,7 @@
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { SearchTerm, SearchTermLabel } from '~/types'
+import { CLAUDE_SONNET } from '~/lib/models'
 
 export interface LabeledTerm {
   id: string
@@ -56,7 +57,7 @@ export async function runSearchTermAgent(
   terms: SearchTerm[],
 ): Promise<SearchTermOutput> {
   let totalTokens = 0
-  const modelUsed = 'claude-sonnet-4-6'
+  const modelUsed = CLAUDE_SONNET
 
   // Process in batches of 20 to stay within context limits
   const batchSize = 20

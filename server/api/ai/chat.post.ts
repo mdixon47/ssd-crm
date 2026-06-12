@@ -1,7 +1,17 @@
 // General-purpose AI chat endpoint used by the AIPanel component
+import { z } from 'zod'
 import { getAnthropicClient } from '~/server/utils/anthropic'
 import { createSupabaseClient } from '~/server/utils/supabase'
 import { GOOGLE_CAMPAIGNS } from '~/lib/mockData'
+import { CLAUDE_SONNET } from '~/lib/models'
+
+const schema = z.object({
+  message: z.string().trim().min(1).max(4000),
+  history: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string(),
+  })).max(20).optional(),
+})
 
 const SYSTEM_PROMPT = `You are the SSD Consulting CRM AI Assistant. You help analyze paid acquisition performance, answer questions about leads and campaigns, and provide strategic guidance.
 
@@ -21,8 +31,12 @@ You have access to campaign data, lead pipeline information, and search term rep
 ⚠️ IMPORTANT: You make recommendations only. You cannot and should not automatically change campaigns, budgets, or ad platform settings. All changes require explicit human approval.`
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody(event)
-  if (!body.message) throw createError({ statusCode: 400, message: 'message is required' })
+  const raw = await readBody(event)
+  const parsed = schema.safeParse(raw)
+  if (!parsed.success) {
+    throw createError({ statusCode: 400, message: parsed.error.message })
+  }
+  const { message, history } = parsed.data
 
   const client = getAnthropicClient()
   const supabase = createSupabaseClient()
@@ -43,18 +57,15 @@ Current campaign data: ${JSON.stringify(GOOGLE_CAMPAIGNS.map(c => ({
 Recent leads: ${JSON.stringify(recentLeads ?? [])}
 `
 
-  const historyMessages: Array<{ role: 'user' | 'assistant'; content: string }> = (body.history || [])
-    .filter((m: { role: string }) => m.role === 'user' || m.role === 'assistant')
-    .slice(-8)
-    .map((m: { role: 'user' | 'assistant'; content: string }) => ({ role: m.role, content: m.content }))
+  const historyMessages = (history ?? []).slice(-8)
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: CLAUDE_SONNET,
     max_tokens: 1024,
     system: SYSTEM_PROMPT + '\n\nCurrent CRM snapshot:\n' + contextBlock,
     messages: [
       ...historyMessages,
-      { role: 'user', content: body.message },
+      { role: 'user', content: message },
     ],
   })
 

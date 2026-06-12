@@ -6,6 +6,7 @@
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { Lead } from '~/types'
+import { CLAUDE_HAIKU } from '~/lib/models'
 
 export interface LeadScore {
   score: number         // 1–10
@@ -57,7 +58,7 @@ export async function runLeadScorerAgent(
   client: Anthropic,
   lead: Partial<Lead>,
 ): Promise<LeadScore> {
-  const modelUsed = 'claude-haiku-4-5-20251001' // Use fast/cheap model for scoring
+  const modelUsed = CLAUDE_HAIKU
 
   const leadSummary = `
 Name: ${lead.fname} ${lead.lname}

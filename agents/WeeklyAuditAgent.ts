@@ -10,7 +10,8 @@
 // All recommendations require explicit human approval.
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
-import type { AuditReport, Campaign, Lead, SearchTerm, NegativeKeyword  } from '~/types'
+import type { AuditReport, Campaign, Lead, SearchTerm, NegativeKeyword } from '~/types'
+import { CLAUDE_OPUS, CLAUDE_SONNET } from '~/lib/models'
 
 const SYSTEM_PROMPT = `You are SSD Consulting's senior paid acquisition strategist. Your job is to run a comprehensive weekly audit of all paid channels.
 
@@ -50,7 +51,7 @@ export async function runWeeklyAuditAgent(
   },
 ): Promise<AuditReport> {
   const { campaigns, leads, searchTerms, negativeKeywords, weekDate } = context
-  const modelUsed = 'claude-opus-4-6'
+  const modelUsed = CLAUDE_OPUS
   let _totalTokens = 0
 
   const tools: Anthropic.Tool[] = [
@@ -142,7 +143,7 @@ Use all available tools to gather data, then produce a comprehensive audit repor
 
   // Convert to structured AuditReport
   const structuredResponse = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: CLAUDE_SONNET,
     max_tokens: 3000,
     system: 'Return ONLY valid JSON. No markdown. Follow the schema exactly.',
     messages: [

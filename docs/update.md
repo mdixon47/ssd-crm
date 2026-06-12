@@ -5,6 +5,70 @@ See [`README.md`](./README.md) for the architecture overview and [`issues.md`](.
 
 ---
 
+## 2026-06-12 (Production hardening: MCP transport, model registry, typecheck, Zod, multi-user RLS)
+
+Five issues resolved in one session (`issues.md` #3, #7, #8, #9, and #2 updated).
+
+### 1. MCP HTTP adapter → `WebStandardStreamableHTTPServerTransport` (`issues.md #3`)
+
+`server/api/mcp/[server].post.ts` previously read the MCP SDK's private `_registeredTools` map behind a `@ts-expect-error`, bypassing the actual MCP protocol entirely. Replaced with:
+
+- `WebStandardStreamableHTTPServerTransport` from `@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js`
+- Stateless mode (`sessionIdGenerator: undefined`) — each request is independent, no session state needed
+- `enableJsonResponse: true` — returns a plain JSON response instead of an SSE stream, matching the existing client contract
+- `toWebRequest(event)` bridges h3 → Web Standard `Request`; the transport returns a Web Standard `Response` which Nitro handles natively
+
+Clients must now send proper MCP JSON-RPC messages (`{ jsonrpc: "2.0", method: "tools/call", params: { name, arguments }, id }`). The old simplified `{ tool, arguments }` format is no longer accepted.
+
+### 2. Centralised Claude model IDs (`issues.md #7`)
+
+New file: `lib/models.ts`
+
+```ts
+export const CLAUDE_HAIKU  = 'claude-haiku-4-5-20251001'
+export const CLAUDE_SONNET = 'claude-sonnet-4-6'
+export const CLAUDE_OPUS   = 'claude-opus-4-6'
+```
+
+All 8 agent files and `server/api/ai/chat.post.ts` now import from `~/lib/models` instead of repeating string literals. Future model upgrades require a single edit.
+
+Files updated: `agents/EmailAgent.ts`, `agents/LeadScorerAgent.ts`, `agents/LeadExtractorAgent.ts`, `agents/CampaignOptimizerAgent.ts`, `agents/EmailStrategistAgent.ts`, `agents/SocialMediaAgent.ts`, `agents/SearchTermAgent.ts`, `agents/WeeklyAuditAgent.ts`, `server/api/ai/chat.post.ts`.
+
+### 3. TypeScript typeCheck enabled (`issues.md #8`)
+
+`nuxt.config.ts`: `typeCheck: false` → `typeCheck: true`. The CI `typecheck` job (`npm run typecheck`) was already blocking on every push/PR — no workflow change required. Nuxt will now fail `nuxt build` on type errors in dev too.
+
+### 4. Zod validation coverage (`issues.md #9`)
+
+Three endpoints that were doing ad-hoc body checks now have proper Zod schemas:
+
+| Endpoint | Schema summary |
+|---|---|
+| `POST /api/ai/chat` | `message: string (1–4000 chars)`, `history?: { role, content }[]` (max 20) |
+| `POST /api/ai/label-terms` | `terms?: SearchTerm[]` (max 500), `auto_apply?: boolean` |
+| `POST /api/ai/score-lead` | `lead: { fname?, lname?, email?, org?, … }` — full lead shape |
+
+All remaining POST endpoints already had Zod (`/api/leads`, `/api/leads/extract`, `/api/email/*`, `/api/ai/email-strategy`, `/api/ai/social-strategy`) or accept no body (`/api/ai/analyze-campaigns`, `/api/ai/weekly-audit`).
+
+### 5. Multi-user RLS migration (`issues.md #2` updated)
+
+New file: `supabase/migrations/007_rls_multi_user.sql`
+
+Replaces the blanket `authenticated_all` policies on all five core tables with four operation-specific policies per table:
+
+| Operation | Policy |
+|---|---|
+| SELECT | Any authenticated user (shared-team CRM) |
+| INSERT | `created_by = auth.uid()` (enforced by `WITH CHECK`) |
+| UPDATE | Any authenticated user (team CRM — anyone can edit records) |
+| DELETE | Row owner (`created_by = auth.uid()`) or any `admin_users` member |
+
+Also adds `created_by uuid references auth.users(id) default auth.uid()` to `leads`, `search_terms`, `negative_keywords`, `audit_sessions`, and `email_messages`, plus covering indexes on each.
+
+**Not yet applied** — run after 003–006 in the Supabase dashboard SQL editor or via `supabase db push`. Service-role paths remain unaffected.
+
+---
+
 ## 2026-06-12 (Test infra: vitest + LeadExtractorAgent spec)
 
 Bootstrapped the project's first unit-test setup.

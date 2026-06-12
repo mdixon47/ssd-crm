@@ -1,17 +1,37 @@
+import { z } from 'zod'
 import { getAnthropicClient } from '~/server/utils/anthropic'
 import { createSupabaseClient } from '~/server/utils/supabase'
 import { runSearchTermAgent } from '~/agents/SearchTermAgent'
 import type { SearchTerm } from '~/types'
 
+const SearchTermSchema = z.object({
+  id: z.string(),
+  term: z.string(),
+  campaign: z.string().optional(),
+  cost: z.number().optional(),
+  clicks: z.number().optional(),
+  conversions: z.number().optional(),
+})
+
+const schema = z.object({
+  terms: z.array(SearchTermSchema).max(500).optional(),
+  auto_apply: z.boolean().optional(),
+})
+
 export default defineEventHandler(async (event) => {
-  const body = await readBody(event)
+  const raw = await readBody(event).catch(() => ({}))
+  const parsed = schema.safeParse(raw ?? {})
+  if (!parsed.success) {
+    throw createError({ statusCode: 400, message: parsed.error.message })
+  }
+  const body = parsed.data
   const client = getAnthropicClient()
   const supabase = createSupabaseClient()
 
   // Accept terms from body or fetch unlabeled ones from DB
-  let terms: SearchTerm[] = body.terms
+  let terms: SearchTerm[] = (body.terms ?? []) as SearchTerm[]
 
-  if (!terms || terms.length === 0) {
+  if (terms.length === 0) {
     const { data } = await supabase
       .from('search_terms')
       .select('*')

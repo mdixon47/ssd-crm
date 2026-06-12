@@ -68,7 +68,7 @@ export default defineNuxtConfig({
 
   typescript: {
     strict: true,
-    typeCheck: false, // enable after initial setup
+    typeCheck: true,
   },
 
   tailwindcss: {
