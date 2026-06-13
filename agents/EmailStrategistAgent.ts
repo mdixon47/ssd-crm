@@ -43,7 +43,9 @@ export async function runEmailStrategistAgent(
 ): Promise<EmailStrategyOutput> {
   const maxRecipients = options?.maxRecipients ?? 8
   const focus = options?.focus
-  const modelUsed = CLAUDE_OPUS
+  // Sonnet is fast enough for email strategy and avoids serverless timeouts.
+  // Reserve Opus for tasks that genuinely need deeper reasoning.
+  const modelUsed = CLAUDE_SONNET
   let totalTokens = 0
 
   const tools: Anthropic.Tool[] = [
@@ -92,13 +94,15 @@ Use the tools to find the best recipients, then draft a personalized email for e
   ]
 
   let rawAnalysis = ''
-  const MAX_ITERATIONS = 10
+  const MAX_ITERATIONS = 4
   let iteration = 0
   while (iteration < MAX_ITERATIONS) {
     iteration++
+    const isLastIteration = iteration === MAX_ITERATIONS
     const response = await client.messages.create({
       model: modelUsed,
-      max_tokens: 4096,
+      // Tool-call turns only need a short response; save tokens for the final text turn.
+      max_tokens: isLastIteration ? 4096 : 1024,
       system: SYSTEM_PROMPT,
       tools,
       messages,

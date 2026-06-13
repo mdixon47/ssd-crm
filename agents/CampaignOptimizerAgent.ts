@@ -7,7 +7,7 @@
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { Campaign, Lead } from '~/types'
-import { CLAUDE_OPUS } from '~/lib/models'
+import { CLAUDE_SONNET } from '~/lib/models'
 
 export interface CampaignRecommendation {
   campaign: string
@@ -99,17 +99,18 @@ Please use the available tools to get detailed data, then provide structured rec
   ]
 
   let totalTokens = 0
-  const modelUsed = CLAUDE_OPUS
+  const modelUsed = CLAUDE_SONNET
 
   // Agentic loop — runs until Claude stops calling tools (capped)
-  const MAX_ITERATIONS = 10
+  const MAX_ITERATIONS = 4
   let iteration = 0
   let lastText = ''
   while (iteration < MAX_ITERATIONS) {
     iteration++
+    const isLastIteration = iteration === MAX_ITERATIONS
     const response = await client.messages.create({
       model: modelUsed,
-      max_tokens: 4096,
+      max_tokens: isLastIteration ? 4096 : 1024,
       system: SYSTEM_PROMPT,
       tools,
       messages,

@@ -9,7 +9,7 @@
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { SocialPlatformData, SocialStrategyOutput } from '~/types'
-import { CLAUDE_OPUS, CLAUDE_SONNET } from '~/lib/models'
+import { CLAUDE_SONNET } from '~/lib/models'
 
 const PLATFORM_NAMES: Record<string, string> = { fb: 'Facebook', ig: 'Instagram', li: 'LinkedIn' }
 
@@ -41,7 +41,7 @@ export async function runSocialMediaAgent(
   platformKey: 'fb' | 'ig' | 'li',
   platform: SocialPlatformData,
 ): Promise<SocialStrategyOutput> {
-  const modelUsed = CLAUDE_OPUS
+  const modelUsed = CLAUDE_SONNET
   let totalTokens = 0
 
   const tools: Anthropic.Tool[] = [
@@ -90,13 +90,14 @@ Use the tools to gather data, then return:
   ]
 
   let rawAnalysis = ''
-  const MAX_ITERATIONS = 8
+  const MAX_ITERATIONS = 4
   let iteration = 0
   while (iteration < MAX_ITERATIONS) {
     iteration++
+    const isLastIteration = iteration === MAX_ITERATIONS
     const response = await client.messages.create({
       model: modelUsed,
-      max_tokens: 4096,
+      max_tokens: isLastIteration ? 4096 : 1024,
       system: SYSTEM_PROMPT,
       tools,
       messages,

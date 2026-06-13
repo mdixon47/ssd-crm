@@ -11,7 +11,7 @@
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { AuditReport, Campaign, Lead, SearchTerm, NegativeKeyword } from '~/types'
-import { CLAUDE_OPUS, CLAUDE_SONNET } from '~/lib/models'
+import { CLAUDE_SONNET } from '~/lib/models'
 
 const SYSTEM_PROMPT = `You are SSD Consulting's senior paid acquisition strategist. Your job is to run a comprehensive weekly audit of all paid channels.
 
@@ -51,7 +51,7 @@ export async function runWeeklyAuditAgent(
   },
 ): Promise<AuditReport> {
   const { campaigns, leads, searchTerms, negativeKeywords, weekDate } = context
-  const modelUsed = CLAUDE_OPUS
+  const modelUsed = CLAUDE_SONNET
   let _totalTokens = 0
 
   const tools: Anthropic.Tool[] = [
@@ -103,13 +103,14 @@ Use all available tools to gather data, then produce a comprehensive audit repor
   let rawAnalysis = ''
 
   // Agentic loop (capped)
-  const MAX_ITERATIONS = 12
+  const MAX_ITERATIONS = 5
   let iteration = 0
   while (iteration < MAX_ITERATIONS) {
     iteration++
+    const isLastIteration = iteration === MAX_ITERATIONS
     const response = await client.messages.create({
       model: modelUsed,
-      max_tokens: 8096,
+      max_tokens: isLastIteration ? 4096 : 1024,
       system: SYSTEM_PROMPT,
       tools,
       messages,
