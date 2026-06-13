@@ -17,12 +17,6 @@
   # Raise Node heap limit for large Nuxt/Vite builds (default ~1.5 GB hits OOM on Netlify).
   NODE_OPTIONS = "--max-old-space-size=4096"
 
-# Raise serverless function timeout to the Netlify maximum (26 s).
-# AI agent routes (email-strategy, weekly-audit) make multiple LLM calls
-# and would hit the 10 s default.
-[functions]
-  timeout = 26
-
 # Preview deploys (branch + PR) get the same build pipeline as production.
 [context.production.environment]
   NITRO_PRESET = "netlify"
