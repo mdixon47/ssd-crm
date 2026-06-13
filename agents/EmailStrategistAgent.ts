@@ -4,13 +4,18 @@
 // the CRM (dormant, qualified, stage-based), drafts each one,
 // and returns a structured outreach plan.
 //
+// Architecture: pre-compute all filtered lead views in JS, then
+// make ONE structured Claude call (tool_choice: any) so the
+// response is immediate JSON — no agentic loop, no second call.
+// This keeps the route well within Netlify's 10 s function limit.
+//
 // ⚠️  READ ONLY. The agent never sends email. Suggestions
 // must be reviewed and explicitly sent by a human via the
 // existing /api/email/send endpoint.
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { Lead, EmailStrategyOutput } from '~/types'
-import { CLAUDE_OPUS, CLAUDE_SONNET } from '~/lib/models'
+import { CLAUDE_SONNET } from '~/lib/models'
 
 const SYSTEM_PROMPT = `You are SSD Consulting's outreach strategist. Your job is to plan the next wave of outreach emails to leads in the CRM.
 
@@ -30,11 +35,7 @@ WRITING RULES:
 - 3–5 short paragraphs max. End with a single clear CTA.
 - Sign off as "Malik" from "SSD Consulting".
 
-SKIP (do not draft for):
-- Leads with stage "Not a Fit" unless re-engagement angle is explicit.
-- Leads with no email address.
-
-Return ONLY valid JSON. No markdown.`
+SKIP: leads with no email address, stage "Not a Fit" or "Lost/No Response" unless a clear re-engagement angle exists.`
 
 export async function runEmailStrategistAgent(
   client: Anthropic,
@@ -43,195 +44,149 @@ export async function runEmailStrategistAgent(
 ): Promise<EmailStrategyOutput> {
   const maxRecipients = options?.maxRecipients ?? 8
   const focus = options?.focus
-  // Sonnet is fast enough for email strategy and avoids serverless timeouts.
-  // Reserve Opus for tasks that genuinely need deeper reasoning.
   const modelUsed = CLAUDE_SONNET
-  let totalTokens = 0
 
-  const tools: Anthropic.Tool[] = [
-    {
-      name: 'get_dormant_leads',
-      description: 'Returns leads that have not been updated in the last N days, sorted by dormancy',
-      input_schema: {
-        type: 'object' as const,
-        properties: {
-          days: { type: 'number', description: 'Minimum days since last update (default 3)' },
+  // ── Pre-compute filtered views in JS (replaces tool-use loop) ──
+  const now = Date.now()
+  const daysSince = (iso: string) => (now - new Date(iso).getTime()) / 86_400_000
+
+  const slim = (l: Lead) => ({
+    id: l.id,
+    name: `${l.fname} ${l.lname}`.trim(),
+    email: l.email,
+    org: l.org,
+    title: l.title ?? '',
+    stage: l.stage,
+    qualified: l.qualified,
+    interest: l.interest ?? '',
+    notes: l.notes ?? '',
+    days_dormant: Math.floor(daysSince(l.updated_at)),
+  })
+
+  const contactable = leads.filter(l => l.email && l.stage !== 'Not a Fit' && l.stage !== 'Lost/No Response')
+
+  const highPriority = contactable
+    .filter(l => daysSince(l.updated_at) > 7 && ['Qualified', 'Proposal Sent', 'Booked Consultation'].includes(l.stage))
+    .sort((a, b) => daysSince(b.updated_at) - daysSince(a.updated_at))
+    .slice(0, 12)
+    .map(slim)
+
+  const mediumPriority = contactable
+    .filter(l => daysSince(l.updated_at) > 3 && ['New Lead', 'Contacted'].includes(l.stage))
+    .sort((a, b) => daysSince(b.updated_at) - daysSince(a.updated_at))
+    .slice(0, 12)
+    .map(slim)
+
+  const highValue = contactable
+    .filter(l => l.qualified === 'yes' || (l.interest ?? '').toLowerCase().includes('consult'))
+    .slice(0, 10)
+    .map(slim)
+
+  const stageDist: Record<string, number> = {}
+  leads.forEach(l => { stageDist[l.stage] = (stageDist[l.stage] || 0) + 1 })
+
+  // ── Single structured call — tool_choice forces immediate JSON output ──
+  const outputTool: Anthropic.Tool = {
+    name: 'plan_outreach',
+    description: 'Return the complete prioritized email outreach plan.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        suggestions: {
+          type: 'array',
+          description: `Up to ${maxRecipients} prioritized outreach suggestions with full email drafts.`,
+          items: {
+            type: 'object',
+            properties: {
+              lead_id: { type: 'string' },
+              lead_name: { type: 'string' },
+              lead_email: { type: 'string' },
+              lead_org: { type: 'string' },
+              current_stage: { type: 'string' },
+              priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+              reason: { type: 'string' },
+              subject: { type: 'string' },
+              body: { type: 'string' },
+            },
+            required: ['lead_name', 'lead_email', 'current_stage', 'priority', 'reason', 'subject', 'body'],
+          },
         },
-        required: [],
+        segment_summary: {
+          type: 'array',
+          items: { type: 'string' },
+          description: '2–4 bullet observations about the current lead mix.',
+        },
+        skipped: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { lead_name: { type: 'string' }, reason: { type: 'string' } },
+            required: ['lead_name', 'reason'],
+          },
+        },
+        summary: { type: 'string', description: 'One paragraph summarising the batch strategy.' },
       },
+      required: ['suggestions', 'segment_summary', 'skipped', 'summary'],
     },
-    {
-      name: 'get_leads_by_stage',
-      description: 'Returns leads at a specific pipeline stage',
-      input_schema: {
-        type: 'object' as const,
-        properties: { stage: { type: 'string' } },
-        required: ['stage'],
-      },
-    },
-    {
-      name: 'get_high_value_candidates',
-      description: 'Returns qualified leads (qualified=yes) and leads with high revenue potential (consulting interest)',
-      input_schema: { type: 'object' as const, properties: {}, required: [] },
-    },
-    {
-      name: 'get_stage_distribution',
-      description: 'Returns count of leads at each pipeline stage for context',
-      input_schema: { type: 'object' as const, properties: {}, required: [] },
-    },
-  ]
-
-  const messages: Anthropic.MessageParam[] = [
-    {
-      role: 'user',
-      content: `Plan the next wave of outreach emails for SSD Consulting.
-Total leads in CRM: ${leads.length}
-Max recipients in this batch: ${maxRecipients}
-${focus ? `Focus: ${focus}` : 'Focus: balanced — pick across stages by priority framework'}
-
-Use the tools to find the best recipients, then draft a personalized email for each. Return a prioritized plan.`,
-    },
-  ]
-
-  let rawAnalysis = ''
-  const MAX_ITERATIONS = 4
-  let iteration = 0
-  while (iteration < MAX_ITERATIONS) {
-    iteration++
-    const isLastIteration = iteration === MAX_ITERATIONS
-    const response = await client.messages.create({
-      model: modelUsed,
-      // Tool-call turns only need a short response; save tokens for the final text turn.
-      max_tokens: isLastIteration ? 4096 : 1024,
-      system: SYSTEM_PROMPT,
-      tools,
-      messages,
-    })
-    totalTokens += (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
-
-    if (response.stop_reason === 'tool_use') {
-      const toolUseBlocks = response.content.filter(b => b.type === 'tool_use')
-      const toolResults: Anthropic.ToolResultBlockParam[] = []
-      for (const block of toolUseBlocks) {
-        if (block.type !== 'tool_use') continue
-        const result = handleEmailTool(block.name, block.input as Record<string, unknown>, leads)
-        toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(result) })
-      }
-      messages.push({ role: 'assistant', content: response.content })
-      messages.push({ role: 'user', content: toolResults })
-    }
-    else {
-      const textBlock = response.content.find(b => b.type === 'text')
-      rawAnalysis = textBlock && textBlock.type === 'text' ? textBlock.text : ''
-      break
-    }
   }
 
-  // Convert to structured JSON
-  const structuredResponse = await client.messages.create({
-    model: CLAUDE_SONNET,
+  const response = await client.messages.create({
+    model: modelUsed,
     max_tokens: 4096,
-    system: 'Return ONLY valid JSON. No markdown. Follow the schema exactly.',
+    system: SYSTEM_PROMPT,
+    tools: [outputTool],
+    tool_choice: { type: 'any' },
     messages: [
       {
         role: 'user',
-        content: `Convert this outreach plan into JSON matching exactly:
-{
-  "suggestions": [{
-    "lead_id": string|null,
-    "lead_name": string,
-    "lead_email": string,
-    "lead_org": string|null,
-    "current_stage": string,
-    "priority": "high"|"medium"|"low",
-    "reason": string,
-    "subject": string,
-    "body": string
-  }],
-  "segment_summary": [string],
-  "skipped": [{ "lead_name": string, "reason": string }],
-  "summary": string
-}
+        content: `Plan the next wave of outreach for SSD Consulting. Select up to ${maxRecipients} leads and draft a personalized email for each.
+${focus ? `\nFocus: ${focus}` : ''}
 
-Cap suggestions at ${maxRecipients}. Plan to convert:
-${rawAnalysis}`,
+STAGE DISTRIBUTION: ${JSON.stringify(stageDist)}
+
+HIGH PRIORITY (qualified/proposal/booked, dormant >7 days):
+${JSON.stringify(highPriority)}
+
+MEDIUM PRIORITY (new/contacted, dormant >3 days):
+${JSON.stringify(mediumPriority)}
+
+HIGH VALUE CANDIDATES (qualified or consulting interest):
+${JSON.stringify(highValue)}
+
+Call plan_outreach with the complete plan.`,
       },
     ],
   })
-  totalTokens += (structuredResponse.usage?.input_tokens ?? 0) + (structuredResponse.usage?.output_tokens ?? 0)
 
-  try {
-    const raw = structuredResponse.content[0]?.type === 'text' ? structuredResponse.content[0].text : '{}'
-    const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    const parsed = JSON.parse(cleaned)
-    return {
-      generated_at: new Date().toISOString(),
-      suggestions: parsed.suggestions ?? [],
-      segment_summary: parsed.segment_summary ?? [],
-      skipped: parsed.skipped ?? [],
-      summary: parsed.summary ?? rawAnalysis.slice(0, 500),
-      model_used: modelUsed,
-      tokens_used: totalTokens,
-    }
-  }
-  catch {
+  const tokens = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
+  const toolBlock = response.content.find(b => b.type === 'tool_use' && b.name === 'plan_outreach')
+
+  if (!toolBlock || toolBlock.type !== 'tool_use') {
     return {
       generated_at: new Date().toISOString(),
       suggestions: [],
       segment_summary: [],
       skipped: [],
-      summary: iteration >= MAX_ITERATIONS
-        ? `Agent reached max iterations (${MAX_ITERATIONS}) — review raw output`
-        : rawAnalysis.slice(0, 500),
+      summary: 'Agent did not return a plan — please try again.',
       model_used: modelUsed,
-      tokens_used: totalTokens,
+      tokens_used: tokens,
     }
   }
-}
 
-// ── Tool implementations ──────────────────────────────────
-function handleEmailTool(
-  name: string,
-  input: Record<string, unknown>,
-  leads: Lead[],
-): unknown {
-  const projectLead = (l: Lead) => ({
-    id: l.id,
-    name: `${l.fname} ${l.lname}`.trim(),
-    email: l.email,
-    org: l.org,
-    title: l.title,
-    stage: l.stage,
-    qualified: l.qualified,
-    interest: l.interest,
-    source: l.source,
-    notes: l.notes,
-    revenue: l.revenue,
-    updated_at: l.updated_at,
-  })
+  const parsed = toolBlock.input as {
+    suggestions: EmailStrategyOutput['suggestions']
+    segment_summary: string[]
+    skipped: Array<{ lead_name: string; reason: string }>
+    summary: string
+  }
 
-  switch (name) {
-    case 'get_dormant_leads': {
-      const days = (input.days as number) || 3
-      const cutoff = Date.now() - days * 86400 * 1000
-      return leads
-        .filter(l => l.email && new Date(l.updated_at).getTime() < cutoff && l.stage !== 'Not a Fit')
-        .sort((a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime())
-        .slice(0, 25)
-        .map(projectLead)
-    }
-    case 'get_leads_by_stage':
-      return leads.filter(l => l.email && l.stage === input.stage).map(projectLead)
-    case 'get_high_value_candidates':
-      return leads
-        .filter(l => l.email && (l.qualified === 'yes' || (l.interest ?? '').toLowerCase().includes('consult')))
-        .map(projectLead)
-    case 'get_stage_distribution': {
-      const dist: Record<string, number> = {}
-      leads.forEach(l => { dist[l.stage] = (dist[l.stage] || 0) + 1 })
-      return { distribution: dist, total: leads.length }
-    }
-    default:
-      return { error: `Unknown tool: ${name}` }
+  return {
+    generated_at: new Date().toISOString(),
+    suggestions: (parsed.suggestions ?? []).slice(0, maxRecipients),
+    segment_summary: parsed.segment_summary ?? [],
+    skipped: parsed.skipped ?? [],
+    summary: parsed.summary ?? '',
+    model_used: modelUsed,
+    tokens_used: tokens,
   }
 }
