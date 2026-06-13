@@ -9,8 +9,11 @@ export type LeadStage =
   | 'New Lead'
   | 'Contacted'
   | 'Booked Consultation'
+  | 'Sales Call'
   | 'Qualified'
   | 'Proposal Sent'
+  | 'Contract Signed'
+  | 'Contract Paid'
   | 'Purchased Course'
   | 'Became Consulting Client'
   | 'Not a Fit'
@@ -287,6 +290,66 @@ export interface SocialStrategyOutput {
   summary: string
   model_used: string
   tokens_used: number
+}
+
+// ------------------------------------------------------------
+// Sales Calls
+// ------------------------------------------------------------
+export type SalesCallOutcome = 'scheduled' | 'completed' | 'no_show' | 'rescheduled' | 'cancelled'
+
+export interface SalesCall {
+  id: string
+  created_at: string
+  lead_id: string | null
+  lead_name?: string
+  lead_org?: string
+  scheduled_at: string
+  duration_minutes: number
+  outcome: SalesCallOutcome
+  notes: string | null
+  packages_discussed: string[] | null
+  next_step: string | null
+  created_by: string | null
+}
+
+// ------------------------------------------------------------
+// Appointments
+// ------------------------------------------------------------
+export type AppointmentType = 'consultation' | 'sales_call' | 'follow_up' | 'other'
+export type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled' | 'no_show'
+
+export interface Appointment {
+  id: string
+  created_at: string
+  lead_id: string | null
+  lead_name?: string
+  lead_org?: string
+  title: string
+  scheduled_at: string
+  duration_minutes: number
+  type: AppointmentType
+  status: AppointmentStatus
+  notes: string | null
+  location: string | null
+  created_by: string | null
+}
+
+// ------------------------------------------------------------
+// Contracts
+// ------------------------------------------------------------
+export interface Contract {
+  id: string
+  created_at: string
+  lead_id: string | null
+  lead_name?: string
+  lead_org?: string
+  service: string
+  value: number
+  signed_at: string | null
+  paid_at: string | null
+  payment_method: string | null
+  notes: string | null
+  created_by: string | null
 }
 
 // ------------------------------------------------------------

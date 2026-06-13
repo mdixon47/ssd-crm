@@ -100,6 +100,73 @@
         <EmailComposer :lead="lead" />
       </div>
 
+      <!-- Activity Tab -->
+      <div v-if="activeTab === 'Activity'" class="px-6 py-5 space-y-6">
+        <!-- Sales Calls -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Sales Calls</h4>
+            <NuxtLink to="/sales-calls" class="text-xs text-cyan-400 hover:text-cyan-300">View all →</NuxtLink>
+          </div>
+          <div v-if="loadingActivity" class="text-slate-500 text-sm">Loading…</div>
+          <div v-else-if="salesCalls.length === 0" class="text-slate-500 text-sm">No sales calls logged.</div>
+          <div v-else class="space-y-2">
+            <div v-for="c in salesCalls" :key="c.id" class="bg-[#070c18] rounded-lg p-3 text-sm border border-slate-700/40">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span :class="outcomeClass(c.outcome)" class="px-2 py-0.5 rounded-full text-xs">{{ c.outcome }}</span>
+                <span class="text-slate-400">{{ formatDate(c.scheduled_at) }} · {{ c.duration_minutes }}min</span>
+              </div>
+              <div v-if="c.next_step" class="text-cyan-400 text-xs mt-1">→ {{ c.next_step }}</div>
+              <div v-if="c.notes" class="text-slate-500 text-xs mt-1 line-clamp-2">{{ c.notes }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Appointments -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Appointments</h4>
+            <NuxtLink to="/appointments" class="text-xs text-cyan-400 hover:text-cyan-300">View all →</NuxtLink>
+          </div>
+          <div v-if="loadingActivity" class="text-slate-500 text-sm">Loading…</div>
+          <div v-else-if="appointments.length === 0" class="text-slate-500 text-sm">No appointments scheduled.</div>
+          <div v-else class="space-y-2">
+            <div v-for="a in appointments" :key="a.id" class="bg-[#070c18] rounded-lg p-3 text-sm border border-slate-700/40">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-white font-medium">{{ a.title }}</span>
+                <span :class="apptStatusClass(a.status)" class="px-2 py-0.5 rounded-full text-xs">{{ a.status }}</span>
+              </div>
+              <div class="text-slate-400 text-xs mt-1">{{ formatDate(a.scheduled_at) }} · {{ a.duration_minutes }}min</div>
+              <div v-if="a.location" class="text-cyan-400 text-xs mt-1">📍 {{ a.location }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contracts -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Contracts</h4>
+            <NuxtLink to="/contracts" class="text-xs text-cyan-400 hover:text-cyan-300">View all →</NuxtLink>
+          </div>
+          <div v-if="loadingActivity" class="text-slate-500 text-sm">Loading…</div>
+          <div v-else-if="contracts.length === 0" class="text-slate-500 text-sm">No contracts on file.</div>
+          <div v-else class="space-y-2">
+            <div v-for="c in contracts" :key="c.id" class="bg-[#070c18] rounded-lg p-3 text-sm border border-slate-700/40">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-white font-medium">{{ c.service }}</span>
+                <span class="text-green-400 font-semibold">{{ formatCurrency(c.value) }}</span>
+              </div>
+              <div class="flex gap-3 mt-1 text-xs flex-wrap">
+                <span v-if="c.signed_at" class="text-cyan-400">✍ Signed {{ formatDate(c.signed_at) }}</span>
+                <span v-else class="text-slate-500">Not signed</span>
+                <span v-if="c.paid_at" class="text-green-400">💳 Paid {{ formatDate(c.paid_at) }}</span>
+                <span v-else class="text-slate-500">Not paid</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Footer (Details tab only) -->
       <div v-if="activeTab === 'Details'" class="px-6 pb-5 flex justify-between items-center" style="border-top:1px solid rgba(148,163,184,0.08);padding-top:1.25rem">
         <button
@@ -129,13 +196,14 @@ const emit = defineEmits<{ close: []; saved: [] }>()
 const leadsStore = useLeadsStore()
 const { scoreLead } = useAI()
 
-const tabs = ['Details', 'Email'] as const
+const tabs = ['Details', 'Email', 'Activity'] as const
 type Tab = typeof tabs[number]
 const activeTab = ref<Tab>('Details')
 
 const STAGES: LeadStage[] = [
-  'New Lead', 'Contacted', 'Booked Consultation', 'Qualified',
-  'Proposal Sent', 'Purchased Course', 'Became Consulting Client',
+  'New Lead', 'Contacted', 'Booked Consultation', 'Sales Call', 'Qualified',
+  'Proposal Sent', 'Contract Signed', 'Contract Paid',
+  'Purchased Course', 'Became Consulting Client',
   'Not a Fit', 'Lost/No Response',
 ]
 
@@ -148,6 +216,53 @@ const form = reactive({
 
 const aiScore = ref<Awaited<ReturnType<typeof scoreLead>>>(null)
 const scoringLead = ref(false)
+
+// Activity tab
+const loadingActivity = ref(false)
+const salesCalls = ref<any[]>([])
+const appointments = ref<any[]>([])
+const contracts = ref<any[]>([])
+
+watch(activeTab, async (tab) => {
+  if (tab !== 'Activity' || salesCalls.value.length || appointments.value.length || contracts.value.length) return
+  loadingActivity.value = true
+  const [sc, ap, co] = await Promise.all([
+    $fetch<any>(`/api/sales-calls?lead_id=${props.lead.id}`),
+    $fetch<any>(`/api/appointments?lead_id=${props.lead.id}`),
+    $fetch<any>(`/api/contracts?lead_id=${props.lead.id}`),
+  ])
+  salesCalls.value = sc.data ?? []
+  appointments.value = ap.data ?? []
+  contracts.value = co.data ?? []
+  loadingActivity.value = false
+})
+
+function outcomeClass(o: string) {
+  return ({
+    completed: 'bg-green-900/40 text-green-400',
+    scheduled: 'bg-cyan-900/40 text-cyan-400',
+    no_show: 'bg-red-900/40 text-red-400',
+    rescheduled: 'bg-yellow-900/40 text-yellow-400',
+    cancelled: 'bg-slate-700 text-slate-400',
+  } as Record<string, string>)[o] ?? 'bg-slate-700 text-slate-400'
+}
+
+function apptStatusClass(s: string) {
+  return ({
+    scheduled: 'bg-cyan-900/40 text-cyan-400',
+    completed: 'bg-green-900/40 text-green-400',
+    cancelled: 'bg-red-900/40 text-red-400',
+    no_show: 'bg-orange-900/40 text-orange-400',
+  } as Record<string, string>)[s] ?? 'bg-slate-700 text-slate-400'
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function formatCurrency(v: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(v)
+}
 
 async function scoreThisLead() {
   scoringLead.value = true

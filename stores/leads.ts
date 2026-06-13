@@ -26,8 +26,9 @@ export const useLeadsStore = defineStore('leads', () => {
 
   // ── Stage grouping ────────────────────────────────────────
   const STAGES: LeadStage[] = [
-    'New Lead', 'Contacted', 'Booked Consultation', 'Qualified',
-    'Proposal Sent', 'Purchased Course', 'Became Consulting Client',
+    'New Lead', 'Contacted', 'Booked Consultation', 'Sales Call', 'Qualified',
+    'Proposal Sent', 'Contract Signed', 'Contract Paid',
+    'Purchased Course', 'Became Consulting Client',
     'Not a Fit', 'Lost/No Response',
   ]
 

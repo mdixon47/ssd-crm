@@ -95,6 +95,10 @@ const { user, loading: authLoading, signOut, displayName } = useAuth()
 const navLinks = [
   { to: '/', label: 'Dashboard', icon: '📊' },
   { to: '/leads', label: 'Leads & Pipeline', icon: '👥' },
+  { to: '/sales-calls', label: 'Sales Calls', icon: '📞' },
+  { to: '/appointments', label: 'Appointments', icon: '📅' },
+  { to: '/contracts', label: 'Contracts', icon: '📝' },
+  { to: '/pricing', label: 'Pricing Sheet', icon: '💰' },
   { to: '/campaigns', label: 'Campaigns', icon: '📢' },
   { to: '/search-terms', label: 'Search Terms', icon: '🔍' },
   { to: '/negative-keywords', label: 'Negative Keywords', icon: '🚫' },
