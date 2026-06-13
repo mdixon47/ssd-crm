@@ -2,13 +2,6 @@
   <div class="p-6 max-w-7xl mx-auto">
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold text-cyan-400">Campaigns</h1>
-      <button
-        class="text-sm px-3 py-1.5 rounded-lg text-slate-300 hover:text-slate-100 transition-colors"
-        style="border:1px solid rgba(148,163,184,0.2)"
-        @click="tab = tab === 'google' ? 'social' : 'google'"
-      >
-        {{ tab === 'google' ? '📱 Switch to Social' : '🔍 Switch to Google' }}
-      </button>
     </div>
 
     <!-- Tab selector -->
@@ -24,6 +17,12 @@
         @click="tab = 'social'"
       >
         📱 Social Media
+      </button>
+      <button
+        :class="['px-4 py-1.5 rounded-md text-sm font-medium transition-colors', tab === 'email' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200']"
+        @click="tab = 'email'"
+      >
+        📧 Email Campaigns
       </button>
     </div>
 
@@ -137,6 +136,130 @@
       </div>
     </div>
 
+    <!-- Email Campaigns -->
+    <div v-else-if="tab === 'email'">
+      <div class="flex items-center justify-between mb-5">
+        <p class="text-sm text-slate-500">Send personalized email campaigns to your leads via Resend.</p>
+        <button
+          class="flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-semibold text-cyan-300 transition-all"
+          style="background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.3)"
+          @click="showComposer = true"
+        >
+          + New Campaign
+        </button>
+      </div>
+
+      <!-- Toast -->
+      <div v-if="toast" class="mb-4 rounded-lg px-4 py-3 text-sm font-medium flex items-center gap-2" :class="toast.type === 'success' ? 'text-emerald-300' : 'text-rose-300'" :style="toast.type === 'success' ? 'background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25)' : 'background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25)'">
+        {{ toast.message }}
+      </div>
+
+      <!-- Loading -->
+      <div v-if="loadingCampaigns" class="text-center py-16 text-slate-600 text-sm">Loading campaigns…</div>
+
+      <!-- Empty state -->
+      <div v-else-if="emailCampaigns.length === 0" class="rounded-xl p-12 text-center" style="background:#0d1628;border:1px solid rgba(148,163,184,0.08);border-style:dashed">
+        <div class="text-3xl mb-3">📧</div>
+        <p class="text-slate-400 font-medium mb-1">No email campaigns yet</p>
+        <p class="text-slate-600 text-sm mb-5">Create your first campaign to send personalized emails to your leads.</p>
+        <button
+          class="text-sm px-4 py-2 rounded-lg font-semibold text-cyan-300"
+          style="background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.3)"
+          @click="showComposer = true"
+        >
+          + New Campaign
+        </button>
+      </div>
+
+      <!-- Campaign list -->
+      <div v-else class="space-y-3">
+        <div
+          v-for="campaign in emailCampaigns"
+          :key="campaign.id"
+          class="rounded-xl overflow-hidden"
+          style="background:#0d1628;border:1px solid rgba(148,163,184,0.1)"
+        >
+          <!-- Campaign header row -->
+          <div
+            class="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-cyan-500/5 transition-colors"
+            @click="toggleExpanded(campaign.id)"
+          >
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-3 flex-wrap">
+                <span class="font-semibold text-slate-100">{{ campaign.name }}</span>
+                <span
+                  class="text-xs px-2 py-0.5 rounded-full font-semibold"
+                  :class="statusClass(campaign.status)"
+                >{{ campaign.status }}</span>
+              </div>
+              <div class="text-xs text-slate-500 mt-0.5 truncate">{{ campaign.subject }}</div>
+            </div>
+            <div class="text-right flex-shrink-0 hidden sm:block">
+              <div v-if="campaign.status === 'sent'" class="text-xs text-slate-500">
+                <span class="text-slate-300 font-medium">{{ campaign.recipient_count }}</span> sent
+              </div>
+              <div class="text-xs text-slate-600 mt-0.5">
+                {{ campaign.sent_at ? formatDate(campaign.sent_at) : formatDate(campaign.created_at) }}
+              </div>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <button
+                v-if="campaign.status === 'draft'"
+                class="text-xs px-3 py-1.5 rounded-lg font-medium text-cyan-300 transition-colors"
+                style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.25)"
+                :disabled="sending === campaign.id"
+                @click.stop="sendCampaign(campaign)"
+              >
+                {{ sending === campaign.id ? 'Sending…' : 'Send' }}
+              </button>
+              <button
+                v-if="campaign.status === 'draft'"
+                class="text-xs px-2.5 py-1.5 rounded-lg text-rose-400 hover:text-rose-300 transition-colors"
+                style="border:1px solid rgba(248,113,113,0.2)"
+                :disabled="deleting === campaign.id"
+                @click.stop="deleteCampaign(campaign.id)"
+              >
+                Delete
+              </button>
+              <span class="text-slate-600 text-sm select-none">{{ expandedId === campaign.id ? '▲' : '▼' }}</span>
+            </div>
+          </div>
+
+          <!-- Expanded recipients -->
+          <div v-if="expandedId === campaign.id" style="border-top:1px solid rgba(148,163,184,0.07)">
+            <div v-if="loadingRecipients" class="px-5 py-4 text-sm text-slate-600">Loading recipients…</div>
+            <div v-else-if="expandedRecipients.length === 0" class="px-5 py-4 text-sm text-slate-600">
+              {{ campaign.status === 'draft' ? 'Not yet sent — click Send to deliver this campaign.' : 'No recipients recorded.' }}
+            </div>
+            <div v-else class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead style="background:#080e1c">
+                  <tr>
+                    <th class="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Recipient</th>
+                    <th class="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Email</th>
+                    <th class="text-center px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Status</th>
+                    <th class="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Sent at</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/30">
+                  <tr v-for="r in expandedRecipients" :key="r.id" class="hover:bg-cyan-500/3 transition-colors">
+                    <td class="px-4 py-2.5 font-medium text-slate-300">{{ r.lead_name || '—' }}</td>
+                    <td class="px-4 py-2.5 text-slate-500 text-xs">{{ r.email }}</td>
+                    <td class="px-4 py-2.5 text-center">
+                      <span class="text-xs px-2 py-0.5 rounded-full font-semibold" :class="r.status === 'sent' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'">
+                        {{ r.status }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-2.5 text-right text-slate-600 text-xs">{{ formatDate(r.created_at) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Social Campaigns -->
     <div v-else>
       <div v-for="(platform, key) in SOCIAL_PLATFORMS" :key="key" class="mb-8">
@@ -195,13 +318,127 @@
       </div>
     </div>
   </div>
+
+  <!-- Email Campaign Composer modal -->
+  <EmailCampaignModal
+    v-if="showComposer"
+    @close="showComposer = false"
+    @saved="onCampaignSaved"
+    @sent="onCampaignSent"
+  />
 </template>
 
 <script setup lang="ts">
+import EmailCampaignModal from '~/components/campaigns/EmailCampaignModal.vue'
 import { GOOGLE_CAMPAIGNS, SOCIAL_PLATFORMS } from '~/lib/mockData'
+import type { EmailCampaign, EmailCampaignRecipient } from '~/types'
 
-const tab = ref<'google' | 'social'>('google')
+const tab = ref<'google' | 'social' | 'email'>('google')
 
+// ── Email campaigns ──────────────────────────────────────────
+const showComposer = ref(false)
+const emailCampaigns = ref<EmailCampaign[]>([])
+const loadingCampaigns = ref(false)
+const expandedId = ref<string | null>(null)
+const expandedRecipients = ref<EmailCampaignRecipient[]>([])
+const loadingRecipients = ref(false)
+const sending = ref<string | false>(false)
+const deleting = ref<string | false>(false)
+const toast = ref<{ type: 'success' | 'error'; message: string } | null>(null)
+
+function showToast(type: 'success' | 'error', message: string) {
+  toast.value = { type, message }
+  setTimeout(() => { toast.value = null }, 4000)
+}
+
+async function loadCampaigns() {
+  loadingCampaigns.value = true
+  try {
+    const res = await $fetch<{ data: EmailCampaign[] }>('/api/email-campaigns')
+    emailCampaigns.value = res.data
+  }
+  catch { /* non-critical */ }
+  finally { loadingCampaigns.value = false }
+}
+
+async function toggleExpanded(id: string) {
+  if (expandedId.value === id) {
+    expandedId.value = null
+    expandedRecipients.value = []
+    return
+  }
+  expandedId.value = id
+  expandedRecipients.value = []
+  loadingRecipients.value = true
+  try {
+    const res = await $fetch<{ data: EmailCampaign & { recipients: EmailCampaignRecipient[] } }>(`/api/email-campaigns/${id}`)
+    expandedRecipients.value = res.data.recipients
+  }
+  catch { /* non-critical */ }
+  finally { loadingRecipients.value = false }
+}
+
+async function sendCampaign(campaign: EmailCampaign) {
+  sending.value = campaign.id
+  try {
+    const res = await $fetch<{ data: { sent: number; failed: number; total: number } }>(
+      `/api/email-campaigns/${campaign.id}/send`,
+      { method: 'POST' },
+    )
+    showToast('success', `Sent to ${res.data.sent} of ${res.data.total} leads.`)
+    await loadCampaigns()
+    expandedId.value = campaign.id
+    await toggleExpanded(campaign.id)
+    await toggleExpanded(campaign.id)
+  }
+  catch (e: unknown) {
+    showToast('error', e instanceof Error ? e.message : 'Send failed')
+  }
+  finally { sending.value = false }
+}
+
+async function deleteCampaign(id: string) {
+  deleting.value = id
+  try {
+    await $fetch(`/api/email-campaigns/${id}`, { method: 'DELETE' })
+    emailCampaigns.value = emailCampaigns.value.filter(c => c.id !== id)
+    if (expandedId.value === id) expandedId.value = null
+  }
+  catch (e: unknown) {
+    showToast('error', e instanceof Error ? e.message : 'Delete failed')
+  }
+  finally { deleting.value = false }
+}
+
+function onCampaignSaved(campaign: EmailCampaign) {
+  emailCampaigns.value.unshift(campaign)
+  showComposer.value = false
+  showToast('success', `"${campaign.name}" saved as draft.`)
+}
+
+function onCampaignSent(campaign: EmailCampaign, result: { sent: number; failed: number; total: number }) {
+  showComposer.value = false
+  showToast('success', `"${campaign.name}" sent to ${result.sent} of ${result.total} leads.`)
+  loadCampaigns()
+}
+
+function statusClass(status: string) {
+  const map: Record<string, string> = {
+    draft: 'bg-slate-500/20 text-slate-400',
+    sending: 'bg-amber-500/15 text-amber-400',
+    sent: 'bg-emerald-500/15 text-emerald-400',
+    failed: 'bg-red-500/15 text-red-400',
+  }
+  return map[status] ?? 'bg-slate-500/20 text-slate-400'
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+watch(tab, (t) => { if (t === 'email') loadCampaigns() })
+
+// ── Paid campaigns ────────────────────────────────────────────
 const MOCK_KEYWORDS = [
   { keyword: 'grant writing course', campaign: 'Free Grant Writing Course', impressions: 4200, clicks: 310, ctr: 7.4, conversions: 22, cost: 580 },
   { keyword: 'how to write a grant', campaign: 'Free Grant Writing Course', impressions: 3100, clicks: 210, ctr: 6.8, conversions: 14, cost: 420 },

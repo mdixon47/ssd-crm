@@ -290,6 +290,40 @@ export interface SocialStrategyOutput {
 }
 
 // ------------------------------------------------------------
+// Email Campaigns
+// ------------------------------------------------------------
+export interface EmailCampaignFilter {
+  stages: string[]
+  sources: string[]
+}
+
+export interface EmailCampaign {
+  id: string
+  created_at: string
+  updated_at: string
+  name: string
+  subject: string
+  body: string
+  status: 'draft' | 'sending' | 'sent' | 'failed'
+  recipient_filter: EmailCampaignFilter
+  recipient_count: number
+  sent_at: string | null
+  created_by: string | null
+}
+
+export interface EmailCampaignRecipient {
+  id: string
+  created_at: string
+  campaign_id: string
+  lead_id: string | null
+  email: string
+  lead_name: string | null
+  status: 'pending' | 'sent' | 'failed'
+  resend_id: string | null
+  error: string | null
+}
+
+// ------------------------------------------------------------
 // AI / MCP
 // ------------------------------------------------------------
 export type AgentType =
