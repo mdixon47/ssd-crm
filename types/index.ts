@@ -398,6 +398,18 @@ export type AgentType =
   | 'email_drafter'
   | 'email_strategist'
   | 'social_strategist'
+  | 'crm_operations'
+
+// CRM Operations Agent — action log entry returned alongside each reply
+export interface CRMActionLog {
+  tool: string
+  summary: string
+}
+
+export interface CRMAgentResponse {
+  reply: string
+  actions: CRMActionLog[]
+}
 
 export interface AgentRequest {
   type: AgentType
