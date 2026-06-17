@@ -218,18 +218,22 @@ const aiScore = ref<Awaited<ReturnType<typeof scoreLead>>>(null)
 const scoringLead = ref(false)
 
 // Activity tab
+interface ActivitySalesCall { id: string; outcome: string; scheduled_at: string; duration_minutes?: number; next_step?: string; notes?: string }
+interface ActivityAppointment { id: string; title?: string; status: string; scheduled_at: string; duration_minutes?: number; location?: string }
+interface ActivityContract { id: string; service?: string; value: number; signed_at?: string | null; paid_at?: string | null }
+
 const loadingActivity = ref(false)
-const salesCalls = ref<any[]>([])
-const appointments = ref<any[]>([])
-const contracts = ref<any[]>([])
+const salesCalls = ref<ActivitySalesCall[]>([])
+const appointments = ref<ActivityAppointment[]>([])
+const contracts = ref<ActivityContract[]>([])
 
 watch(activeTab, async (tab) => {
   if (tab !== 'Activity' || salesCalls.value.length || appointments.value.length || contracts.value.length) return
   loadingActivity.value = true
   const [sc, ap, co] = await Promise.all([
-    $fetch<any>(`/api/sales-calls?lead_id=${props.lead.id}`),
-    $fetch<any>(`/api/appointments?lead_id=${props.lead.id}`),
-    $fetch<any>(`/api/contracts?lead_id=${props.lead.id}`),
+    $fetch<{ data: ActivitySalesCall[] }>(`/api/sales-calls?lead_id=${props.lead.id}`),
+    $fetch<{ data: ActivityAppointment[] }>(`/api/appointments?lead_id=${props.lead.id}`),
+    $fetch<{ data: ActivityContract[] }>(`/api/contracts?lead_id=${props.lead.id}`),
   ])
   salesCalls.value = sc.data ?? []
   appointments.value = ap.data ?? []

@@ -17,7 +17,8 @@ export default defineEventHandler(async (event) => {
   const { data, error } = await q
   if (error) throw createError({ statusCode: 500, message: error.message })
 
-  const rows = (data ?? []).map((r: any) => ({
+  type RowWithLeads = { leads?: { fname: string; lname: string; org?: string } | null } & Record<string, unknown>
+  const rows = (data ?? []).map((r: RowWithLeads) => ({
     ...r,
     lead_name: r.leads ? `${r.leads.fname} ${r.leads.lname}`.trim() : null,
     lead_org: r.leads?.org ?? null,
