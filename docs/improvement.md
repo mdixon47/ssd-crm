@@ -198,8 +198,11 @@ Close the marketing loop: which content pieces drove the most leads?
 |---|---|
 | Centralised Claude model IDs (`lib/models.ts`) | 2026-06-12 |
 | Zod validation on all AI endpoints | 2026-06-12 |
-| Multi-user RLS migration (007) | 2026-06-12 (unapplied) |
+| Multi-user RLS migration (007) | 2026-06-12 |
 | Vitest + LeadExtractorAgent test | 2026-06-12 |
 | CRM Operations Agent (central orchestrator) | 2026-06-15 |
 | Content Publishing Agent + A2A router | 2026-06-17 |
 | Content Hub page (`/content`) | 2026-06-17 |
+| All Supabase migrations applied to live project (003–010) | 2026-06-17 |
+| vitest upgraded 2.1.9 → 4.1.8 | 2026-06-17 |
+| @anthropic-ai/sdk upgraded 0.102.0 → 0.104.1 | 2026-06-17 |

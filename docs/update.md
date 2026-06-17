@@ -5,6 +5,36 @@ See [`README.md`](./README.md) for the architecture overview, [`issues.md`](./is
 
 ---
 
+## 2026-06-17 (Migrations applied + CI fixed + dependencies updated)
+
+### Supabase migrations — all pending migrations applied to live project (003–010)
+
+Applied via Supabase Management API (`/v1/projects/{ref}/database/query`). Tables now live:
+
+| Migration | What it adds |
+|---|---|
+| 003 | RLS enabled on `leads`, `search_terms`, `negative_keywords`, `audit_sessions`, `email_messages` |
+| 004 | `assignee` text column + index on `leads` |
+| 005 | `admin_users` table with superadmin seed for malik.dixon47@gmail.com |
+| 006 | `profiles` table + auto-create trigger on auth user signup |
+| 007 | `created_by` column on all 5 core tables; granular SELECT/INSERT/UPDATE/DELETE policies |
+| 008 | `email_campaigns` + `email_campaign_recipients` tables |
+| 009 | `sales_calls`, `appointments`, `contracts` tables + indexes |
+| 010 | `content_items` table + `set_updated_at` trigger + RLS |
+
+Post-apply: added 4 RLS policies each for `sales_calls`, `appointments`, `contracts`, `email_campaign_recipients` (migration 009 created tables but omitted policies). All 13 public tables now have RLS enabled with correct policies.
+
+### GitHub Actions CI — all lint and typecheck errors resolved
+
+23 `@typescript-eslint/no-explicit-any` errors fixed across Sales Calls, Appointments, Contracts pages and LeadModal. `vue/no-multiple-template-root` fixed in Campaigns page. TypeScript errors fixed in EmailCampaignModal, content page, and score-lead endpoint. See issues.md #24.
+
+### Dependency updates (Dependabot PRs #11, #17 merged)
+
+- `vitest` 2.1.9 → 4.1.8 (major upgrade; test suite passes)
+- `@anthropic-ai/sdk` 0.102.0 → 0.104.1 (adds claude-fable-5/mythos-5 support, Managed Agents, client-side fallbacks middleware)
+
+---
+
 ## 2026-06-17 (Content Publishing System MVP + A2A agent protocol)
 
 Full content publishing and distribution system with an agent-to-agent (A2A) communication layer.

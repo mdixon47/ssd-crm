@@ -24,21 +24,21 @@ After rotation, paste the new values directly into `.env` (not through chat) and
 
 ## 🟠 High — schedule
 
-### 2. Supabase migrations — several not yet applied to live project
-The following migrations are checked in but **have not been applied** to the live project. Apply via the Supabase dashboard SQL editor in numeric order.
+### 2. ~~Supabase migrations — several not yet applied to live project~~ — **RESOLVED 2026-06-17**
+All 8 pending migrations were applied via the Supabase Management API (`/v1/projects/{ref}/database/query`).
 
 | Migration | Content | Status |
 |---|---|---|
-| `003_enable_rls.sql` | Enable RLS on core tables | ❌ unapplied |
-| `004_lead_assignee.sql` | `assignee` column on leads | ❌ unapplied |
-| `005_admin_users.sql` | Admin role table | ❌ unapplied |
-| `006_profiles.sql` | User profiles | ❌ unapplied |
-| `007_rls_multi_user.sql` | Multi-user per-row policies | ❌ unapplied |
-| `008_email_campaigns.sql` | Email campaigns + recipients | ❌ unapplied |
-| `009_sales_calls_appointments_contracts.sql` | Sales Calls, Appointments, Contracts tables | ❌ unapplied |
-| `010_content_items.sql` | Content Hub content_items table | ❌ unapplied |
+| `003_enable_rls.sql` | Enable RLS on core tables | ✅ applied 2026-06-17 |
+| `004_lead_assignee.sql` | `assignee` column on leads | ✅ applied 2026-06-17 |
+| `005_admin_users.sql` | Admin role table | ✅ applied 2026-06-17 |
+| `006_profiles.sql` | User profiles | ✅ applied 2026-06-17 |
+| `007_rls_multi_user.sql` | Multi-user per-row policies | ✅ applied 2026-06-17 |
+| `008_email_campaigns.sql` | Email campaigns + recipients | ✅ applied 2026-06-17 |
+| `009_sales_calls_appointments_contracts.sql` | Sales Calls, Appointments, Contracts tables | ✅ applied 2026-06-17 |
+| `010_content_items.sql` | Content Hub content_items table | ✅ applied 2026-06-17 |
 
-Until `009` is applied, all writes on the Sales Calls, Appointments, and Contracts pages will fail. Until `010` is applied, the Content Hub will return errors on save and load.
+**Post-apply fix:** `sales_calls`, `appointments`, `contracts`, and `email_campaign_recipients` had RLS enabled but no policies (migration 009 creates tables without policies; policy creation was omitted). 4 granular policies (SELECT/INSERT/UPDATE/DELETE) were added for each table matching the pattern in migration 007. All 13 public tables now have RLS enabled and correct policies.
 
 `007_rls_multi_user.sql` adds `created_by uuid references auth.users(id) default auth.uid()` to all five core tables and replaces each `authenticated_all` policy with four operation-specific policies: SELECT + UPDATE open to all authenticated users (shared-team CRM), INSERT enforced to `created_by = auth.uid()`, DELETE restricted to the row owner or any `admin_users` member.
 
