@@ -12,6 +12,7 @@
 import type Anthropic from '@anthropic-ai/sdk'
 import { CLAUDE_SONNET } from '~/lib/models'
 import { runEmailAgent } from '~/agents/EmailAgent'
+import { runContentPublishingAgent } from '~/agents/ContentPublishingAgent'
 import { GOOGLE_CAMPAIGNS } from '~/lib/mockData'
 import type { createSupabaseClient } from '~/server/utils/supabase'
 
@@ -53,12 +54,13 @@ YOUR TOOLS:
 - draft_email: AI-draft a follow-up email for a lead (human reviews before sending)
 - get_campaign_performance: Aggregated campaign stats (spend, leads, qualified, revenue)
 - create_appointment: Schedule a follow-up task or appointment for a lead
+- create_content: Delegate to the Content Publishing Agent via A2A to create a post, email, or content piece
 
 RULES:
 - Always call tools to read real CRM data. Never invent lead names, stats, or campaign numbers.
 - When adding a lead, capture all available attribution: source, campaign, keyword, landing page.
 - Present drafted emails clearly for human review — never say an email was sent.
-- For social media post writing requests, write the post content directly in your response — no tool needed.
+- For content/post creation requests, always use the create_content tool — it creates real saved drafts.
 - For "summarize leads" requests, call search_leads first, then synthesize from the results.
 - Be concise, specific, and action-oriented. Format lists with bullet points.`
 
@@ -163,6 +165,21 @@ const TOOLS: Anthropic.Tool[] = [
         duration_minutes: { type: 'number', description: 'Duration in minutes (default 30)' },
       },
       required: ['title', 'scheduled_at', 'type'],
+    },
+  },
+  {
+    name: 'create_content',
+    description: 'Delegate to the Content Publishing Agent (A2A) to create platform-optimised content drafts saved to the Content Hub. Use for social posts, email newsletters, LinkedIn posts, etc.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        topic: { type: 'string', description: 'What the content is about (e.g. "Grant Writing 101 promotion", "common grant proposal mistakes")' },
+        platform: { type: 'string', enum: ['linkedin', 'facebook', 'instagram', 'email', 'all'], description: 'Target platform' },
+        offer: { type: 'string', enum: ['gw101', 'grants_consulting', 'bh_consulting', 'free_course', 'general'], description: 'Which offering to promote' },
+        tone: { type: 'string', enum: ['educational', 'promotional', 'testimonial', 'story', 'announcement'], description: 'Content tone' },
+        context: { type: 'string', description: 'Any extra context (e.g. recent lead trends, specific angle to emphasize)' },
+      },
+      required: ['topic', 'platform'],
     },
   },
 ]
@@ -362,6 +379,34 @@ async function executeTool(
     return {
       result: JSON.stringify(data),
       summary: `Scheduled ${i.type}: "${i.title}" on ${new Date(i.scheduled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+    }
+  }
+
+  // ── create_content (A2A → Content Publishing Agent) ───────
+  // Internal A2A: call the Content Publishing Agent directly.
+  // The HTTP /api/a2a/content-publisher endpoint serves the same
+  // function for external callers (webhooks, third-party agents).
+  if (name === 'create_content') {
+    const i = input as {
+      topic: string; platform: string; offer?: string; tone?: string; context?: string
+    }
+
+    type CPlatform = 'linkedin' | 'facebook' | 'instagram' | 'email' | 'all'
+    type COffer = 'gw101' | 'grants_consulting' | 'bh_consulting' | 'free_course' | 'general'
+    type CTone = 'educational' | 'promotional' | 'testimonial' | 'story' | 'announcement'
+
+    const result = await runContentPublishingAgent(anthropic, supabase, {
+      topic: i.topic,
+      platform: (i.platform as CPlatform) ?? 'linkedin',
+      offer: i.offer as COffer | undefined,
+      tone: i.tone as CTone | undefined,
+      context: i.context,
+    })
+
+    const count = result.savedIds.length
+    return {
+      result: JSON.stringify({ saved_count: count, savedIds: result.savedIds, strategy_notes: result.strategy_notes }),
+      summary: `Created ${count} content draft${count === 1 ? '' : 's'} for ${i.platform} via Content Publishing Agent`,
     }
   }
 

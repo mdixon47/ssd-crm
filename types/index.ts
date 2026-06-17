@@ -411,6 +411,92 @@ export interface CRMAgentResponse {
   actions: CRMActionLog[]
 }
 
+// ------------------------------------------------------------
+// Content Publishing
+// ------------------------------------------------------------
+export type ContentType = 'post' | 'email' | 'carousel' | 'reel' | 'article'
+export type ContentPlatform = 'linkedin' | 'facebook' | 'instagram' | 'email' | 'all'
+export type ContentStatus = 'draft' | 'scheduled' | 'published' | 'archived'
+export type ContentOffer = 'gw101' | 'grants_consulting' | 'bh_consulting' | 'free_course' | 'general'
+export type ContentTone = 'educational' | 'promotional' | 'testimonial' | 'story' | 'announcement'
+
+export interface ContentItem {
+  id: string
+  created_at: string
+  updated_at: string
+  title: string
+  body: string
+  content_type: ContentType
+  platform: ContentPlatform
+  status: ContentStatus
+  scheduled_at: string | null
+  published_at: string | null
+  topic: string | null
+  offer: ContentOffer | null
+  tone: ContentTone | null
+  tags: string[]
+  performance: ContentPerformance
+  created_by: string | null
+}
+
+export interface ContentPerformance {
+  likes?: number
+  comments?: number
+  shares?: number
+  clicks?: number
+  leads_generated?: number
+}
+
+export interface ContentItemInsert {
+  title: string
+  body: string
+  content_type: ContentType
+  platform: ContentPlatform
+  status?: ContentStatus
+  scheduled_at?: string | null
+  topic?: string | null
+  offer?: ContentOffer | null
+  tone?: ContentTone | null
+  tags?: string[]
+}
+
+// Output from ContentPublishingAgent
+export interface GeneratedContent {
+  platform: ContentPlatform
+  title: string
+  body: string
+  content_type: ContentType
+  tone: ContentTone
+  hashtags?: string[]
+  suggested_schedule?: string
+  notes?: string
+}
+
+export interface ContentPublishResult {
+  items: GeneratedContent[]
+  strategy_notes: string
+  model_used: string
+}
+
+// ------------------------------------------------------------
+// A2A (Agent-to-Agent) Protocol
+// ------------------------------------------------------------
+export type A2AAgentId = 'crm_operations' | 'content_publisher'
+
+export interface A2AMessage {
+  from: A2AAgentId | string
+  task: string
+  payload: Record<string, unknown>
+  context?: Record<string, unknown>
+}
+
+export interface A2AResponse {
+  success: boolean
+  agent: A2AAgentId | string
+  result: unknown
+  error?: string
+}
+
 export interface AgentRequest {
   type: AgentType
   payload: Record<string, unknown>
