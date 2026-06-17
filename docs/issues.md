@@ -123,9 +123,9 @@ The shared `server/middleware/auth.ts` now requires a valid Supabase session on 
 ### 10. Nuxt 3.21.7 vite-node socket regression (workaround in place)
 `@nuxt/vite-builder` 3.21.7 nests the IPC Unix socket in an extra `mkdtemp` directory, pushing the path past macOS's 104-byte `sockaddr_un.sun_path` limit.
 
-- **Workaround applied:** `scripts.dev` in `package.json` is `TMPDIR=/tmp nuxt dev`.
+- **Workaround applied:** `scripts.dev` in `package.json` is `TMPDIR=/tmp nuxt dev`. Still required — Nuxt remains on 3.21.7.
 - **Upstream:** nuxt/nuxt#35253, #35258, #35264.
-- **Action when fixed:** once `@nuxt/vite-builder >= 3.21.8` is published on the `3x` tag (Dependabot will PR it), revert the script back to `"nuxt dev"`.
+- **Action when fixed:** once Dependabot raises a Nuxt/vite-builder PR that bumps to ≥ 3.21.8, revert `package.json` dev script back to `"nuxt dev"` and delete this issue.
 - **Windows users:** inline `TMPDIR=...` won't work in `cmd`; switch to `cross-env` if needed.
 
 ### 11. ~~Hard-coded Claude model identifiers~~ — RESOLVED 2026-06-12
@@ -142,16 +142,30 @@ Model IDs are now centralised in `lib/models.ts` (`CLAUDE_HAIKU`, `CLAUDE_SONNET
 Zod schemas added to `POST /api/ai/chat`, `POST /api/ai/label-terms`, and `POST /api/ai/score-lead`. The remaining endpoints either had Zod before this session (`/api/leads`, `/api/leads/extract`, `/api/email/*`, `/api/ai/email-strategy`, `/api/ai/social-strategy`) or accept no body (`/api/ai/analyze-campaigns`, `/api/ai/weekly-audit`). `PATCH /api/leads/[id]` still uses an `allowedFields` allowlist without Zod — tracked separately if needed. See `update.md` (2026-06-12).
 
 ### 14. No per-IP rate limiting
-`/api/leads`, `/api/ai/*`, and `/api/a2a/*` are uncapped. Add IP-based throttling once the host is chosen (Vercel Edge Config or Upstash Ratelimit are the obvious candidates). See `improvement.md` I-11.
+`/api/leads`, `/api/ai/*`, and `/api/a2a/*` are uncapped. In-memory rate limiting is not viable for serverless (each invocation is a fresh process). Requires **Upstash Ratelimit** (`@upstash/ratelimit` + `@upstash/redis`) — set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`, add a Nitro plugin that wraps AI and A2A routes. See `improvement.md` I-11. Deferred until Upstash is provisioned.
 
-### 20. A2A endpoint lacks machine-to-machine authentication
-`POST /api/a2a/[agent]` is protected by the global session-cookie middleware, which works for same-origin browser callers but blocks legitimate external agents (Zapier, Make, third-party Claude agents). See `improvement.md` I-03 for the Bearer token fix.
+### 20. ~~A2A endpoint lacks machine-to-machine authentication~~ — **RESOLVED 2026-06-17**
+`server/middleware/auth.ts` now checks `Authorization: Bearer <NUXT_A2A_SECRET>` on `/api/a2a/*` paths before falling through to the Supabase session check. External agents (Zapier, Make, third-party Claude agents) can call `/api/a2a/*` with the secret and bypass cookie auth. Set `NUXT_A2A_SECRET` in the deployment environment. Empty string = feature disabled (session auth still required).
 
-### 21. Content Hub: scheduled posts are never auto-published
-Setting a `scheduled_at` on a content item and status `scheduled` marks it in the DB but no background process publishes it. A cron job needs to be wired (Netlify Scheduled Functions or Vercel cron at `/api/cron/publish-scheduled`). See `improvement.md` I-07.
+### 21. ~~Content Hub: scheduled posts are never auto-published~~ — **RESOLVED 2026-06-17**
+`server/api/cron/publish-scheduled.ts` queries `content_items` where `status = 'scheduled'` and `scheduled_at <= now()`, then bulk-updates `status → published`, `published_at → now()`. Secured by `Authorization: Bearer <NUXT_CRON_SECRET>` (exempt from session auth via `server/middleware/auth.ts`).
+
+**Scheduler wiring:**
+- **GitHub Actions:** `.github/workflows/cron-publish.yml` runs on `*/15 * * * *` schedule; calls the endpoint with `APP_URL` and `NUXT_CRON_SECRET` secrets. Both must be set in the repo's Settings → Secrets.
+- **Manual test:** `curl -X GET <APP_URL>/api/cron/publish-scheduled -H "Authorization: Bearer <secret>"`
+
+Note: this changes DB status only. Real platform posting (LinkedIn, Facebook, Instagram, Email) is a separate integration — tracked in #22.
 
 ### 22. Content Hub: "Publish" button is manual only (no platform API integration)
-Clicking "Mark Published" records the status change in the DB but does not push to LinkedIn, Facebook, Instagram, or email. Real integrations require OAuth app credentials and API calls. See `improvement.md` I-02.
+Clicking "Mark Published" records the status change in the DB but does not push to LinkedIn, Facebook, Instagram, or email. Real integrations require OAuth app credentials:
+
+| Platform | Credential needed |
+|---|---|
+| LinkedIn | `LINKEDIN_ACCESS_TOKEN` (already in `.env.example`) |
+| Facebook / Instagram | `META_PAGE_ACCESS_TOKEN`, `META_PAGE_ID` |
+| Email | `RESEND_API_KEY` (already set) + recipient list from leads |
+
+Implementation path: `server/api/content/[id]/publish.post.ts` — reads platform, dispatches to per-platform handler, stores `external_id` in `performance` JSONB. See `improvement.md` I-02. Blocked on OAuth credential setup.
 
 ### 24. ~~GitHub Actions CI: lint and typecheck failures across Sales Calls, Appointments, Contracts, Campaigns pages~~ — **RESOLVED 2026-06-17**
 

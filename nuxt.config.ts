@@ -20,6 +20,9 @@ export default defineNuxtConfig({
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || '',
     resendApiKey: process.env.RESEND_API_KEY || '',
     resendFromEmail: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    // Machine-to-machine secrets (set via NUXT_A2A_SECRET / NUXT_CRON_SECRET env vars)
+    a2aSecret: '',
+    cronSecret: '',
 
     // Public (exposed to client)
     public: {

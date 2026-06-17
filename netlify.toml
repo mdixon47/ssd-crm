@@ -26,3 +26,12 @@
 
 [context.branch-deploy.environment]
   NITRO_PRESET = "netlify"
+
+# ── Functions ────────────────────────────────────────────────
+# Raise the default 10s function timeout for AI agent routes.
+[functions]
+  included_files = [".netlify/functions-internal/**"]
+
+[[functions]]
+  path = "/.netlify/functions-internal/server"
+  timeout = 26
