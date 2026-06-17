@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { Lead } from '~/types'
 import { getAnthropicClient } from '~/server/utils/anthropic'
 import { runLeadScorerAgent } from '~/agents/LeadScorerAgent'
 
@@ -28,6 +29,6 @@ export default defineEventHandler(async (event) => {
   }
 
   const client = getAnthropicClient()
-  const result = await runLeadScorerAgent(client, parsed.data.lead)
+  const result = await runLeadScorerAgent(client, parsed.data.lead as Partial<Lead>)
   return { data: result }
 })

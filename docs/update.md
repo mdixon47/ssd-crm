@@ -1,7 +1,120 @@
 # Updates
 
 Chronological log of project-level changes. Newest first.
-See [`README.md`](./README.md) for the architecture overview and [`issues.md`](./issues.md) for outstanding problems.
+See [`README.md`](./README.md) for the architecture overview, [`issues.md`](./issues.md) for outstanding problems, and [`improvement.md`](./improvement.md) for the feature roadmap.
+
+---
+
+## 2026-06-17 (Content Publishing System MVP + A2A agent protocol)
+
+Full content publishing and distribution system with an agent-to-agent (A2A) communication layer.
+
+### Content Publishing Agent (`agents/ContentPublishingAgent.ts`)
+
+Claude Sonnet + tool_use loop (max 5 iterations). Creates platform-native content for LinkedIn, Facebook, Instagram, and Email. Three tools:
+
+| Tool | Purpose |
+|---|---|
+| `get_crm_context` | Reads live lead volume, source breakdown, and recent pipeline data to personalise content angles |
+| `get_content_calendar` | Checks recently published/scheduled content to avoid topic repetition |
+| `save_content` | Persists the finished content draft to `content_items` table |
+
+Platform-specific style guidelines are injected into the system prompt for each target. Content is saved as a draft — never auto-posted.
+
+### A2A Router (`server/api/a2a/[agent].post.ts`)
+
+`POST /api/a2a/{agent}` with body `{ task, payload, from?, context? }`.
+
+| Agent | Tasks |
+|---|---|
+| `content-publisher` | `create_content` → calls ContentPublishingAgent |
+| `crm-operations` | `get_lead_context`, `get_campaign_context` → read-only CRM queries |
+
+**Internal vs external A2A:** Within the server, agents call each other's exported functions directly (no HTTP round-trip). The HTTP `/api/a2a/` endpoint serves external callers — webhooks, third-party agents, Zapier, etc. See `improvement.md` I-03 for planned A2A authentication hardening.
+
+### CRM Operations Agent — `create_content` tool
+
+`agents/CRMOperationsAgent.ts` gains an eighth tool: `create_content`. When a user asks "Create a LinkedIn post for Grant Writing 101", the CRM agent calls the ContentPublishingAgent directly (internal A2A), which generates the content with live CRM context and saves a draft to the Content Hub.
+
+### Content Hub (`pages/content/index.vue`)
+
+New page at `/content` (added to sidebar). Features:
+
+- Filter grid by status (draft / scheduled / published / archived) and platform
+- Content cards: platform icon, body preview, offer/tone badges, relative date
+- Performance stats on published items (likes, comments, shares, clicks, leads)
+- **Mark Published** / **Schedule** (datetime picker inline) / **Delete** actions
+- **Edit modal**: full body editor + schedule datetime field
+- **AI Creator modal**: topic + platform + offer + tone → calls `/api/ai/content-create` → ContentPublishingAgent generates and saves drafts
+
+### Content CRUD API
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/content` | List with optional `status`, `platform`, `offer` filters |
+| `POST /api/content` | Create manually with Zod validation |
+| `PATCH /api/content/[id]` | Update fields; auto-sets `published_at` on status → published |
+| `DELETE /api/content/[id]` | Delete |
+| `POST /api/ai/content-create` | AI creation via ContentPublishingAgent |
+
+### DB migration (`supabase/migrations/010_content_items.sql`)
+
+New `content_items` table: `id`, `title`, `body`, `content_type`, `platform`, `status`, `scheduled_at`, `published_at`, `topic`, `offer`, `tone`, `tags[]`, `performance JSONB`, `created_by`. RLS: team SELECT + UPDATE, owner INSERT + DELETE. **Not yet applied to live project** — run after 009 in the Supabase SQL editor.
+
+### Bug fix: AIPanel workflow buttons redundant API calls
+
+The four workflow buttons (Weekly Audit, Analyze Campaigns, Plan Outreach, Social Strategy) were passing their formatted result strings through `crmChat`, which sent them to the CRM Operations Agent as new commands — causing a wasted API call and potential misinterpretation. Fixed with a new `pushAssistantMessage()` helper in `useAI.ts` that adds messages directly to the conversation state. Also added `create_content` (`✍️`) to the AIPanel tool label map.
+
+### New types
+
+`types/index.ts` additions: `ContentItem`, `ContentPerformance`, `ContentItemInsert`, `ContentType`, `ContentPlatform`, `ContentStatus`, `ContentOffer`, `ContentTone`, `GeneratedContent`, `ContentPublishResult`, `A2AMessage`, `A2AResponse`, `A2AAgentId`.
+
+---
+
+## 2026-06-15 (CRM Operations Agent — central AI orchestrator)
+
+### CRM Operations Agent (`agents/CRMOperationsAgent.ts`)
+
+Claude Sonnet + native tool_use agentic loop (max 8 iterations). Replaces the general-purpose `chat.post.ts` as the primary conversational AI for the panel. Understands free-form CRM commands and executes them against real data.
+
+Seven tools:
+
+| Tool | Action |
+|---|---|
+| `search_leads` | Filter by stage, source, campaign, date range, or keyword in interest/notes/org |
+| `get_lead_detail` | Full lead record + email history |
+| `create_lead` | Add lead with full UTM attribution (source, campaign, keyword, landing page) |
+| `update_lead` | Append notes (timestamped), update stage, reassign |
+| `draft_email` | AI-draft via EmailAgent — returned for human review, never auto-sent |
+| `get_campaign_performance` | CRM + ad platform campaign data |
+| `create_appointment` | Schedule a follow-up appointment or task |
+
+Example commands handled:
+- "Add Jane Smith from ACME Nonprofit as a grant writing lead" → `create_lead`
+- "Show me leads from LinkedIn this week" → `search_leads` with `source=linkedin`, `since_date`
+- "Find everyone qualified but not yet sent a proposal" → `search_leads` with `stage=Qualified`
+- "Draft a follow-up email for lead [id]" → `draft_email`
+- "Which campaign generated the most qualified leads?" → `get_campaign_performance`
+- "Schedule a proposal review with John for June 20" → `create_appointment`
+
+### API endpoint (`server/api/ai/crm-agent.post.ts`)
+
+`POST /api/ai/crm-agent { message, history? }` → `{ data: { reply, actions[] } }`. History capped at 12 turns. Zod-validated.
+
+### `composables/useAI.ts`
+
+New `crmChat(message)` function — manages conversation state (user message + assistant reply + error handling), calls `/api/ai/crm-agent`, returns `CRMAgentResponse | null`.
+
+### `components/ai/AIPanel.vue`
+
+- Header updated to "CRM Operations Agent / Powered by Claude Sonnet"
+- Chat now routes through `crmChat` instead of the generic `chat` endpoint
+- Quick actions replaced with CRM-specific commands (LinkedIn leads, qualified pipeline, campaign ranking, social post generation)
+- Action log rendered below each assistant response showing which tools were invoked (with emoji labels)
+
+### New types
+
+`types/index.ts` additions: `crm_operations` AgentType, `CRMActionLog`, `CRMAgentResponse`.
 
 ---
 

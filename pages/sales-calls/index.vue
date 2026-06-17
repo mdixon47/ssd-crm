@@ -151,10 +151,23 @@
 </template>
 
 <script setup lang="ts">
-const { data: leadsData } = await useFetch('/api/leads')
-const leads = computed(() => (leadsData.value as any)?.data ?? [])
+interface SalesCall {
+  id: string
+  lead_id?: string | null
+  lead_name?: string | null
+  lead_org?: string | null
+  scheduled_at: string
+  duration_minutes?: number
+  outcome: string
+  notes?: string
+  next_step?: string
+  packages_discussed?: string[]
+}
 
-const calls = ref<any[]>([])
+const { data: leadsData } = await useFetch('/api/leads')
+const leads = computed(() => (leadsData.value as { data?: { id: string; fname: string; lname: string; org?: string }[] } | null)?.data ?? [])
+
+const calls = ref<SalesCall[]>([])
 const loading = ref(true)
 const saving = ref(false)
 const showForm = ref(false)
@@ -190,7 +203,7 @@ const filtered = computed(() => {
 
 async function load() {
   loading.value = true
-  const res = await $fetch<any>('/api/sales-calls')
+  const res = await $fetch<{ data: SalesCall[] }>('/api/sales-calls')
   calls.value = res.data ?? []
   loading.value = false
 }
@@ -209,7 +222,7 @@ async function saveCall() {
   saving.value = false
 }
 
-async function updateCall(c: any) {
+async function updateCall(c: SalesCall) {
   await $fetch(`/api/sales-calls/${c.id}`, {
     method: 'PATCH',
     body: { outcome: c.outcome, notes: c.notes, next_step: c.next_step },

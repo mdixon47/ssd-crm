@@ -317,15 +317,15 @@
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Email Campaign Composer modal -->
-  <EmailCampaignModal
-    v-if="showComposer"
-    @close="showComposer = false"
-    @saved="onCampaignSaved"
-    @sent="onCampaignSent"
-  />
+    <!-- Email Campaign Composer modal -->
+    <EmailCampaignModal
+      v-if="showComposer"
+      @close="showComposer = false"
+      @saved="onCampaignSaved"
+      @sent="onCampaignSent"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">

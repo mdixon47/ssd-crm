@@ -4,7 +4,7 @@
 // server-side. This composable just manages client state
 // and calls the appropriate server routes.
 // ============================================================
-import type { AuditReport, SearchTerm, Lead, EmailStrategyOutput, SocialStrategyOutput } from '~/types'
+import type { AuditReport, SearchTerm, Lead, EmailStrategyOutput, SocialStrategyOutput, CRMAgentResponse } from '~/types'
 
 export interface LeadScoreResult {
   score: number
@@ -198,6 +198,49 @@ export function useAI() {
     }
   }
 
+  // ── CRM Operations Agent ─────────────────────────────────
+  async function crmChat(userMessage: string): Promise<CRMAgentResponse | null> {
+    messages.value.push({ role: 'user', content: userMessage, timestamp: new Date() })
+    const placeholder: AIMessage = { role: 'assistant', content: '', timestamp: new Date(), loading: true }
+    messages.value.push(placeholder)
+    loading.value = true
+    error.value = null
+
+    const history = messages.value
+      .slice(0, -1)
+      .filter(m => !m.loading && m.content.trim().length > 0 && m.role !== 'system')
+      .slice(-10)
+      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+
+    try {
+      const res = await $fetch<{ data: CRMAgentResponse }>('/api/ai/crm-agent', {
+        method: 'POST',
+        body: { message: userMessage, history },
+      })
+      const { reply, actions } = res.data
+      const idx = messages.value.length - 1
+      messages.value[idx] = { role: 'assistant', content: reply, timestamp: new Date() }
+      return { reply, actions }
+    }
+    catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'CRM agent request failed'
+      error.value = msg
+      messages.value.pop()
+      messages.value.pop()
+      return null
+    }
+    finally {
+      loading.value = false
+    }
+  }
+
+  // Pushes a pre-formatted assistant message directly — no API call.
+  // Use for workflow button results (audit, campaign analysis, etc.)
+  // so results don't loop back through the CRM Operations Agent.
+  function pushAssistantMessage(content: string) {
+    messages.value.push({ role: 'assistant', content, timestamp: new Date() })
+  }
+
   function clearMessages() {
     messages.value = []
   }
@@ -210,6 +253,8 @@ export function useAI() {
     lastSocialStrategy,
     error,
     chat,
+    crmChat,
+    pushAssistantMessage,
     analyzeCampaigns,
     labelSearchTerms,
     scoreLead,

@@ -129,6 +129,19 @@
 </template>
 
 <script setup lang="ts">
+interface Contract {
+  id: string
+  service?: string
+  value: number
+  signed_at?: string | null
+  paid_at?: string | null
+  payment_method?: string
+  notes?: string
+  lead_id?: string | null
+  lead_name?: string | null
+  lead_org?: string | null
+}
+
 const tabs = [
   { key: 'all', label: 'All' },
   { key: 'pending', label: 'Pending' },
@@ -140,10 +153,10 @@ const search = ref('')
 const showForm = ref(false)
 const saving = ref(false)
 const loading = ref(true)
-const contracts = ref<any[]>([])
+const contracts = ref<Contract[]>([])
 
 const { data: leadsData } = await useFetch('/api/leads')
-const leads = computed(() => (leadsData.value as any)?.data ?? [])
+const leads = computed(() => (leadsData.value as { data?: { id: string; fname: string; lname: string; org?: string }[] } | null)?.data ?? [])
 
 const form = reactive({
   lead_id: '',
@@ -174,7 +187,7 @@ const filtered = computed(() => {
 
 async function load() {
   loading.value = true
-  const res = await $fetch<any>('/api/contracts')
+  const res = await $fetch<{ data: Contract[] }>('/api/contracts')
   contracts.value = res.data ?? []
   loading.value = false
 }
@@ -196,13 +209,13 @@ async function saveContract() {
   saving.value = false
 }
 
-async function markSigned(c: any) {
+async function markSigned(c: Contract) {
   const now = new Date().toISOString()
   c.signed_at = now
   await $fetch(`/api/contracts/${c.id}`, { method: 'PATCH', body: { signed_at: now } })
 }
 
-async function markPaid(c: any) {
+async function markPaid(c: Contract) {
   const now = new Date().toISOString()
   c.paid_at = now
   await $fetch(`/api/contracts/${c.id}`, { method: 'PATCH', body: { paid_at: now } })
