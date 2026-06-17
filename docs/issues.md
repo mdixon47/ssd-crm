@@ -24,8 +24,23 @@ After rotation, paste the new values directly into `.env` (not through chat) and
 
 ## 🟠 High — schedule
 
-### 2. Supabase Row Level Security + email_campaigns migration — not yet applied
-Migrations `003_enable_rls.sql` through `007_rls_multi_user.sql` (RLS, assignee, admin users, profiles, multi-user policies) and `008_email_campaigns.sql` (email campaign + recipient tables added 2026-06-12) are checked in but **have not been applied** to the live project. Apply via the Supabase dashboard SQL editor or `supabase db push` in numeric order (003 → 004 → 005 → 006 → 007 → 008).
+### 2. Supabase migrations — several not yet applied to live project
+The following migrations are checked in but **have not been applied** to the live project. Apply via the Supabase dashboard SQL editor in numeric order.
+
+| Migration | Content | Status |
+|---|---|---|
+| `003_enable_rls.sql` | Enable RLS on core tables | ❌ unapplied |
+| `004_lead_assignee.sql` | `assignee` column on leads | ❌ unapplied |
+| `005_admin_users.sql` | Admin role table | ❌ unapplied |
+| `006_profiles.sql` | User profiles | ❌ unapplied |
+| `007_rls_multi_user.sql` | Multi-user per-row policies | ❌ unapplied |
+| `008_email_campaigns.sql` | Email campaigns + recipients | ❌ unapplied |
+| `009_sales_calls_appointments_contracts.sql` | Sales Calls, Appointments, Contracts tables | ❌ unapplied |
+| `010_content_items.sql` | Content Hub content_items table | ❌ unapplied |
+
+Until `009` is applied, all writes on the Sales Calls, Appointments, and Contracts pages will fail. Until `010` is applied, the Content Hub will return errors on save and load.
+
+`007_rls_multi_user.sql` adds `created_by uuid references auth.users(id) default auth.uid()` to all five core tables and replaces each `authenticated_all` policy with four operation-specific policies: SELECT + UPDATE open to all authenticated users (shared-team CRM), INSERT enforced to `created_by = auth.uid()`, DELETE restricted to the row owner or any `admin_users` member.
 
 `007_rls_multi_user.sql` adds `created_by uuid references auth.users(id) default auth.uid()` to all five core tables and replaces each `authenticated_all` policy with four operation-specific policies: SELECT + UPDATE open to all authenticated users (shared-team CRM), INSERT enforced to `created_by = auth.uid()`, DELETE restricted to the row owner or any `admin_users` member.
 
@@ -91,7 +106,7 @@ After the first successful Netlify build (post OOM fix), sign-in failed with two
 ### 8. ~~No authentication on `/api/mcp/*`~~ — RESOLVED 2026-06-10
 The shared `server/middleware/auth.ts` now requires a valid Supabase session on every `/api/**` route, including `/api/mcp/[server]`. Remaining external-access work is tracked under #2 (RLS) and #7 (replace private SDK internals).
 
-### 9. Pre-existing TypeScript errors block `nuxt typecheck` — **RESOLVED 2026-06-08**
+### 9a. Pre-existing TypeScript errors block `nuxt typecheck` — **RESOLVED 2026-06-08**
 `npm run typecheck` previously reported 56 errors across `agents/`, `components/leads/LeadModal.vue`, `pages/campaigns/`, `pages/leads/`, `pages/negative-keywords/`, `pages/search-terms/`, `pages/social/`, and `server/mcp/*`. Resolution summary:
 
 1. **MCP SDK `tool()` → `registerTool()` migration** (`server/mcp/crm`, `google-ads`, `linkedin-ads`, `meta-ads`). The deprecated `tool()` overload had ambiguous resolution between `ToolAnnotations` and `ZodRawShapeCompat`, producing TS2589 "excessively deep" instantiation. `registerTool` uses an explicit config object that bypasses the problematic inference path.
@@ -116,18 +131,30 @@ The shared `server/middleware/auth.ts` now requires a valid Supabase session on 
 ### 11. ~~Hard-coded Claude model identifiers~~ — RESOLVED 2026-06-12
 Model IDs are now centralised in `lib/models.ts` (`CLAUDE_HAIKU`, `CLAUDE_SONNET`, `CLAUDE_OPUS`). All 8 agent files and `server/api/ai/chat.post.ts` import from there. See `update.md` (2026-06-12).
 
-### 9. `typescript.typeCheck` disabled in nuxt.config.ts — intentional trade-off
+### 9b. `typescript.typeCheck` disabled in nuxt.config.ts — intentional trade-off
 `typeCheck: true` was briefly enabled (2026-06-12) but had to be reverted to `false` (2026-06-12) because `vue-tsc` runs concurrently with the Vite build under the same Node process, nearly doubling peak heap usage. The Netlify build container hit the 4 GB heap ceiling even after raising `NODE_OPTIONS=--max-old-space-size=4096`. Running both in a single process is the design of `@nuxt/module-builder`'s typecheck integration.
 
 **Current state:** `nuxt.config.ts` has `typeCheck: false`. Type correctness is still enforced — the GitHub Actions CI `typecheck` job (`npm run typecheck`, which has its own `--max-old-space-size=8192` budget) gates every merge. The deploy build is type-check-free for memory reasons only.
 
 **To re-enable in future:** either split the build into two separate steps in the netlify.toml (`npx nuxt typecheck && npx nuxt prepare && npm run build`) each with their own Node process, or upgrade to a Netlify build container with more RAM.
 
-### 13. ~~Zod validation not yet applied to remaining endpoints~~ — RESOLVED 2026-06-12
+### 13a. ~~Zod validation not yet applied to remaining endpoints~~ — RESOLVED 2026-06-12
 Zod schemas added to `POST /api/ai/chat`, `POST /api/ai/label-terms`, and `POST /api/ai/score-lead`. The remaining endpoints either had Zod before this session (`/api/leads`, `/api/leads/extract`, `/api/email/*`, `/api/ai/email-strategy`, `/api/ai/social-strategy`) or accept no body (`/api/ai/analyze-campaigns`, `/api/ai/weekly-audit`). `PATCH /api/leads/[id]` still uses an `allowedFields` allowlist without Zod — tracked separately if needed. See `update.md` (2026-06-12).
 
 ### 14. No per-IP rate limiting
-`/api/leads` and `/api/ai/*` are uncapped. Add IP-based throttling once the host is chosen (Vercel Edge Config or Upstash Ratelimit are the obvious candidates).
+`/api/leads`, `/api/ai/*`, and `/api/a2a/*` are uncapped. Add IP-based throttling once the host is chosen (Vercel Edge Config or Upstash Ratelimit are the obvious candidates). See `improvement.md` I-11.
+
+### 20. A2A endpoint lacks machine-to-machine authentication
+`POST /api/a2a/[agent]` is protected by the global session-cookie middleware, which works for same-origin browser callers but blocks legitimate external agents (Zapier, Make, third-party Claude agents). See `improvement.md` I-03 for the Bearer token fix.
+
+### 21. Content Hub: scheduled posts are never auto-published
+Setting a `scheduled_at` on a content item and status `scheduled` marks it in the DB but no background process publishes it. A cron job needs to be wired (Netlify Scheduled Functions or Vercel cron at `/api/cron/publish-scheduled`). See `improvement.md` I-07.
+
+### 22. Content Hub: "Publish" button is manual only (no platform API integration)
+Clicking "Mark Published" records the status change in the DB but does not push to LinkedIn, Facebook, Instagram, or email. Real integrations require OAuth app credentials and API calls. See `improvement.md` I-02.
+
+### 23. ~~AIPanel workflow buttons redundant API round-trip~~ — **RESOLVED 2026-06-17**
+The Weekly Audit, Analyze Campaigns, Plan Outreach, and Social Strategy buttons passed their pre-formatted result strings back through `crmChat`, causing a wasted Anthropic API call and risking the CRM Operations Agent misinterpreting the result summary as a new command. Fixed with a `pushAssistantMessage()` helper in `useAI.ts` that inserts assistant messages directly into the conversation state without an API call.
 
 ---
 

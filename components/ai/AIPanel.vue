@@ -145,7 +145,7 @@ import { useAI } from '~/composables/useAI'
 
 defineEmits<{ close: [] }>()
 
-const { messages, loading, crmChat, analyzeCampaigns: runAnalysis, runWeeklyAudit, runEmailStrategy, runSocialStrategy, clearMessages } = useAI()
+const { messages, loading, crmChat, pushAssistantMessage, analyzeCampaigns: runAnalysis, runWeeklyAudit, runEmailStrategy, runSocialStrategy, clearMessages } = useAI()
 
 const inputText = ref('')
 const agentLoading = ref(false)
@@ -170,6 +170,7 @@ function toolLabel(tool: string): string {
     draft_email: '✉️',
     get_campaign_performance: '📊',
     create_appointment: '📅',
+    create_content: '✍️',
   }
   return map[tool] ?? '⚙️'
 }
@@ -199,8 +200,7 @@ async function runAudit() {
     const report = await runWeeklyAudit()
     if (report) {
       lastActions.value = []
-      const result = await crmChat(`Weekly audit complete. Summary: ${report.summary}`)
-      if (result?.actions) lastActions.value = result.actions
+      pushAssistantMessage(`**Weekly Audit** — ${report.overall_health?.replace('_', ' ') ?? 'complete'}\n\n${report.summary}\n\nScale: ${(report.campaigns_to_scale ?? []).join(', ') || 'none'} · Pause: ${(report.campaigns_to_pause ?? []).join(', ') || 'none'}\n\nOpen the Weekly Audit page for the full checklist.`)
       await nextTick()
       scrollToBottom()
     }
@@ -216,8 +216,7 @@ async function analyzeCampaigns() {
     const result = await runAnalysis()
     if (result && result.summary) {
       lastActions.value = []
-      const r = await crmChat(`Campaign analysis complete. ${result.summary as string}`)
-      if (r?.actions) lastActions.value = r.actions
+      pushAssistantMessage(`**Campaign Analysis**\n\n${result.summary as string}\n\nOpen the Campaigns page for full keyword and spend breakdown.`)
       await nextTick()
       scrollToBottom()
     }
@@ -232,11 +231,10 @@ async function planEmails() {
   try {
     const result = await runEmailStrategy()
     if (result) {
-      const headline = `Outreach plan ready — ${result.suggestions.length} suggested email${result.suggestions.length === 1 ? '' : 's'}.`
+      const headline = `**Outreach Plan** — ${result.suggestions.length} suggested email${result.suggestions.length === 1 ? '' : 's'}`
       const detail = result.suggestions.slice(0, 5).map(s => `• [${s.priority}] ${s.lead_name}${s.lead_org ? ` (${s.lead_org})` : ''} — ${s.reason}`).join('\n')
       lastActions.value = []
-      const r = await crmChat(`${headline}\n${detail}\n\n${result.summary}\n\nOpen the Leads page to review and send.`)
-      if (r?.actions) lastActions.value = r.actions
+      pushAssistantMessage(`${headline}\n\n${detail}\n\n${result.summary}\n\nOpen the Leads page to review drafts and send.`)
       await nextTick()
       scrollToBottom()
     }
@@ -253,8 +251,7 @@ async function planSocial() {
     if (result) {
       const recs = result.recommendations.slice(0, 4).map(r => `• [${r.priority}] (${r.area}) ${r.action}`).join('\n')
       lastActions.value = []
-      const r = await crmChat(`Facebook strategy — health: **${result.health}**.\n${recs}\n\n${result.summary}\n\nOpen the Social page for per-platform breakdowns.`)
-      if (r?.actions) lastActions.value = r.actions
+      pushAssistantMessage(`**Facebook Strategy** — health: **${result.health}**\n\n${recs}\n\n${result.summary}\n\nOpen the Social page for per-platform analysis.`)
       await nextTick()
       scrollToBottom()
     }

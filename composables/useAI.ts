@@ -234,6 +234,13 @@ export function useAI() {
     }
   }
 
+  // Pushes a pre-formatted assistant message directly — no API call.
+  // Use for workflow button results (audit, campaign analysis, etc.)
+  // so results don't loop back through the CRM Operations Agent.
+  function pushAssistantMessage(content: string) {
+    messages.value.push({ role: 'assistant', content, timestamp: new Date() })
+  }
+
   function clearMessages() {
     messages.value = []
   }
@@ -247,6 +254,7 @@ export function useAI() {
     error,
     chat,
     crmChat,
+    pushAssistantMessage,
     analyzeCampaigns,
     labelSearchTerms,
     scoreLead,
