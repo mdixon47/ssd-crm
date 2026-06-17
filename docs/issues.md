@@ -153,6 +153,28 @@ Setting a `scheduled_at` on a content item and status `scheduled` marks it in th
 ### 22. Content Hub: "Publish" button is manual only (no platform API integration)
 Clicking "Mark Published" records the status change in the DB but does not push to LinkedIn, Facebook, Instagram, or email. Real integrations require OAuth app credentials and API calls. See `improvement.md` I-02.
 
+### 24. ~~GitHub Actions CI: lint and typecheck failures across Sales Calls, Appointments, Contracts, Campaigns pages~~ — **RESOLVED 2026-06-17**
+
+The CI `Lint` and `Typecheck` jobs were both failing, blocking all builds. Root cause: the Sales Calls, Appointments, Contracts, and Content pages added in the previous session used `any` types throughout and the Campaigns page had a second template root.
+
+**Lint errors fixed (`@typescript-eslint/no-explicit-any` — 23 instances across 8 files):**
+- `components/leads/LeadModal.vue` — activity tab refs (`salesCalls`, `appointments`, `contracts`) and `$fetch` calls replaced with typed `ActivitySalesCall`, `ActivityAppointment`, `ActivityContract` interfaces
+- `pages/appointments/index.vue` — `appointments` ref and `markStatus` parameter typed with `Appointment` interface
+- `pages/contracts/index.vue` — `contracts` ref, `markSigned`/`markPaid` parameters typed with `Contract` interface
+- `pages/sales-calls/index.vue` — `calls` ref and `updateCall` parameter typed with `SalesCall` interface
+- `server/api/appointments/index.get.ts`, `server/api/contracts/index.get.ts`, `server/api/sales-calls/index.get.ts` — Supabase row `.map()` callback typed with `RowWithLeads = { leads?: {...} } & Record<string, unknown>`
+- `useFetch('/api/leads')` cast updated across all three pages to include `org?: string` on the lead shape
+
+**Lint error fixed (`vue/no-multiple-template-root`):**
+- `pages/campaigns/index.vue` — `<EmailCampaignModal>` was a sibling of the page root `<div>`, creating two template roots; moved inside the root div
+
+**Typecheck errors fixed:**
+- `components/campaigns/EmailCampaignModal.vue` — `:disabled="saving"` where `saving: false | 'draft' | 'send'` → changed to `!!saving` to produce a `boolean`
+- `pages/content/index.vue` — `PLATFORM_OPTIONS` array typed as `Array<{ value: ContentPlatform }>` to match `form.platform` assignment; imported `ContentPlatform` from `~/types`
+- `server/api/ai/score-lead.post.ts` — Zod-inferred schema shape has `qualified: string` vs `Lead.qualified: QualifiedStatus`; fixed with `as Partial<Lead>` cast after import
+
+**Verification:** `npm run lint` exits 0 (0 errors, 69 warnings); `npm run typecheck` exits 0.
+
 ### 23. ~~AIPanel workflow buttons redundant API round-trip~~ — **RESOLVED 2026-06-17**
 The Weekly Audit, Analyze Campaigns, Plan Outreach, and Social Strategy buttons passed their pre-formatted result strings back through `crmChat`, causing a wasted Anthropic API call and risking the CRM Operations Agent misinterpreting the result summary as a new command. Fixed with a `pushAssistantMessage()` helper in `useAI.ts` that inserts assistant messages directly into the conversation state without an API call.
 

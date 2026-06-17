@@ -309,7 +309,7 @@
 </template>
 
 <script setup lang="ts">
-import type { ContentItem, ContentPerformance } from '~/types'
+import type { ContentItem, ContentPerformance, ContentPlatform } from '~/types'
 
 const STATUS_TABS = [
   { label: 'All', value: '' },
@@ -326,7 +326,7 @@ const PLATFORM_TABS = [
   { label: 'Email', value: 'email', icon: '✉️' },
 ]
 
-const PLATFORM_OPTIONS = [
+const PLATFORM_OPTIONS: Array<{ label: string; value: ContentPlatform; icon: string }> = [
   { label: 'LinkedIn', value: 'linkedin', icon: '💼' },
   { label: 'Facebook', value: 'facebook', icon: '📘' },
   { label: 'Instagram', value: 'instagram', icon: '📸' },

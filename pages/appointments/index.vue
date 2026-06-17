@@ -131,6 +131,20 @@
 </template>
 
 <script setup lang="ts">
+interface Appointment {
+  id: string
+  title?: string
+  scheduled_at: string
+  duration_minutes?: number
+  type?: string
+  status: string
+  notes?: string
+  location?: string
+  lead_id?: string | null
+  lead_name?: string | null
+  lead_org?: string | null
+}
+
 const tabs = [
   { key: 'upcoming', label: 'Upcoming' },
   { key: 'all', label: 'All' },
@@ -141,10 +155,10 @@ const search = ref('')
 const showForm = ref(false)
 const saving = ref(false)
 const loading = ref(true)
-const appointments = ref<any[]>([])
+const appointments = ref<Appointment[]>([])
 
 const { data: leadsData } = await useFetch('/api/leads')
-const leads = computed(() => (leadsData.value as any)?.data ?? [])
+const leads = computed(() => (leadsData.value as { data?: { id: string; fname: string; lname: string; org?: string }[] } | null)?.data ?? [])
 
 const form = reactive({
   lead_id: '',
@@ -176,7 +190,7 @@ const filteredAppts = computed(() => {
 
 async function load() {
   loading.value = true
-  const res = await $fetch<any>('/api/appointments')
+  const res = await $fetch<{ data: Appointment[] }>('/api/appointments')
   appointments.value = res.data ?? []
   loading.value = false
 }
@@ -197,7 +211,7 @@ async function saveAppointment() {
   saving.value = false
 }
 
-async function markStatus(a: any, status: string) {
+async function markStatus(a: Appointment, status: string) {
   a.status = status
   await $fetch(`/api/appointments/${a.id}`, { method: 'PATCH', body: { status } })
 }

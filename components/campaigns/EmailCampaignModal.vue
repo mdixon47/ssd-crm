@@ -119,7 +119,7 @@
         <button
           class="text-sm px-4 py-2 rounded-lg text-slate-400 hover:text-slate-200 transition-colors"
           style="border:1px solid rgba(148,163,184,0.15)"
-          :disabled="saving"
+          :disabled="!!saving"
           @click="$emit('close')"
         >
           Cancel
@@ -128,7 +128,7 @@
           <button
             class="text-sm px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
             style="background:rgba(148,163,184,0.08);border:1px solid rgba(148,163,184,0.2);color:#94a3b8"
-            :disabled="!canSubmit || saving"
+            :disabled="!canSubmit || !!saving"
             @click="submit('draft')"
           >
             {{ saving === 'draft' ? 'Saving…' : 'Save Draft' }}
@@ -136,7 +136,7 @@
           <button
             class="text-sm px-5 py-2 rounded-lg font-semibold text-cyan-300 transition-all disabled:opacity-50"
             style="background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.3)"
-            :disabled="!canSubmit || saving"
+            :disabled="!canSubmit || !!saving"
             @click="submit('send')"
           >
             {{ saving === 'send' ? 'Sending…' : 'Save & Send' }}
