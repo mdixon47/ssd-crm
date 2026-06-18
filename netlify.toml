@@ -28,8 +28,11 @@
   NITRO_PRESET = "netlify"
 
 # ── Functions ────────────────────────────────────────────────
-# Raise the default 10s function timeout for AI agent routes.
+# Raise the default 10s timeout for AI agent routes.
+# timeout must be set per-function, not at the [functions] table level.
 [functions]
   included_files = [".netlify/functions-internal/**"]
+
+[functions.server]
   timeout = 26
 
