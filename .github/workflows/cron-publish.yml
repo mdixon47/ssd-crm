@@ -12,13 +12,30 @@ jobs:
     name: Trigger scheduled publish
     runs-on: ubuntu-latest
     steps:
+      - name: Check required secrets
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          NUXT_CRON_SECRET: ${{ secrets.NUXT_CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "::error::APP_URL secret is not set. Add it in Settings → Secrets → Actions."
+            exit 1
+          fi
+          if [ -z "$NUXT_CRON_SECRET" ]; then
+            echo "::error::NUXT_CRON_SECRET secret is not set. Add it in Settings → Secrets → Actions."
+            exit 1
+          fi
+
       - name: Call publish-scheduled endpoint
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          NUXT_CRON_SECRET: ${{ secrets.NUXT_CRON_SECRET }}
         run: |
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X GET "${{ secrets.APP_URL }}/api/cron/publish-scheduled" \
-            -H "Authorization: Bearer ${{ secrets.NUXT_CRON_SECRET }}")
+            -X GET "${APP_URL}/api/cron/publish-scheduled" \
+            -H "Authorization: Bearer ${NUXT_CRON_SECRET}")
           echo "HTTP status: $RESPONSE"
           if [ "$RESPONSE" != "200" ]; then
-            echo "Cron endpoint returned $RESPONSE — check APP_URL and NUXT_CRON_SECRET secrets"
+            echo "::error::Cron endpoint returned ${RESPONSE}. Check APP_URL and NUXT_CRON_SECRET secrets."
             exit 1
           fi
