@@ -2,7 +2,7 @@ import { Composition } from "remotion";
 import { HeroAd } from "./HeroAd";
 import { AdCut } from "./AdCut";
 import { brand, FPS, sec } from "./theme";
-import { DEFAULT_HOOK, HookContent } from "./scenes/Hook";
+import { DEFAULT_HOOK, type HookContent } from "./scenes/Hook";
 
 const DURATION = sec(20); // 20s hero
 const CUT_DURATION = sec(6); // 6s retargeting bumper

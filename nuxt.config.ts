@@ -74,6 +74,12 @@ export default defineNuxtConfig({
     // typeCheck runs vue-tsc concurrently with Vite and doubles peak heap usage.
     // Run type checking separately (npm run typecheck) rather than during build.
     typeCheck: false,
+    // marketing/ is a self-contained Remotion (React) project with its own
+    // deps and tsconfig — it must not be swept into the Nuxt typecheck.
+    // Merged into .nuxt/tsconfig.json's exclude (path is relative to .nuxt/).
+    tsConfig: {
+      exclude: ['../marketing'],
+    },
   },
 
   vite: {

@@ -1,7 +1,7 @@
 import { AbsoluteFill, Series } from "remotion";
 import "./font";
 import { Background } from "./components/Background";
-import { Hook, HookContent } from "./scenes/Hook";
+import { Hook, type HookContent } from "./scenes/Hook";
 import { Value } from "./scenes/Value";
 import { Pillars } from "./scenes/Pillars";
 import { Proof } from "./scenes/Proof";

@@ -36,6 +36,9 @@ export default createConfigForNuxt({
         'coverage',
         'supabase/.temp',
         'supabase/.branches',
+        // Self-contained Remotion (React) project — linted/typechecked by its
+        // own toolchain, not the Nuxt/Vue ESLint config.
+        'marketing',
       ],
     },
   )
