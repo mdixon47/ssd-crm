@@ -95,6 +95,24 @@ The CodeQL upload step needs *Code scanning* turned on in repo settings (*Settin
 ### 18. zod v4 upgrade — eligible to attempt
 The 2026-06-08 baseline-fix unblocks v4 evaluation. Source-level migration is required, not just a version bump: `z.string().email()` → `z.email()` (5 sites), `z.string().uuid()` → `z.uuid()` (1 site), and any reader of `ZodError.errors` must move to `.issues`. Affected files: `server/api/{email/draft,email/send,leads/index,ai/email-strategy,ai/social-strategy}.post.ts` and `server/mcp/*/index.ts`. **Exit criteria**: unignore via Dependabot or bump locally, apply renames, run `npm run typecheck` + `npm run build`, decide whether to keep the `overrides.zod` pin (the MCP SDK ships v4 natively, so the override likely becomes unnecessary).
 
+### 19. `marketing/video/` (Remotion) — code review 2026-06-22
+High-effort review of the new Remotion marketing-video project. `tsc --noEmit` is clean and all 8 compositions render. The following were found **and fixed** this session (kept here briefly for traceability; remove once confirmed in CI):
+
+| # | Severity | Issue | Fix |
+|---|---|---|---|
+| a | 🟡 | `loadFont()` called with no args fetched **all** Inter weights/subsets/styles (~100+ files; "too many requests" warning) and is a hard error in Remotion v5 | Centralized in `src/font.ts` with `loadFont("normal", { weights: ["500".."900"], subsets: ["latin"] })`; warning gone |
+| b | 🟡 | `Scene.tsx` fade `interpolate` range becomes non-monotonic for any scene ≤ `2*fade` frames → `interpolate()` throws | Clamp `fade` to `< durationInFrames/2` |
+| c | ⚪ | `still` thumbnail rendered at frame 420 = the Proof scene, foregrounding the **placeholder metrics** the docs warn never to publish | Moved to frame 540 (CTA/logo) |
+| d | ⚪ | CTA button markup duplicated verbatim in `scenes/CTA.tsx` and `AdCut.tsx` | Extracted `components/CtaButton.tsx` |
+| e | ⚪ | `HOOK_VARIANTS` "A-Pain" duplicated `DEFAULT_HOOK` → A/B control could silently drift from the live hero ad | A-Pain now references `DEFAULT_HOOK` |
+| f | ⚪ | `FPS`/`sec()` redeclared in `Root.tsx`/`HeroAd.tsx`/`AdCut.tsx` (drift risk) | Single source in `theme.ts` |
+| g | ⚪ | `Background.tsx` SVG `<pattern id="grid">` used a document-global id (collision if two Backgrounds mount) | `useId()`-based id |
+| h | ⚪ | Partial `hook` prop override could blank the headline (default-param only fired on fully-undefined) | Per-field merge with `DEFAULT_HOOK` in `Hook.tsx` |
+| i | ⚪ | `Scene.tsx` imported `useVideoConfig` in a second redundant `import` | Merged imports |
+| j | ⚪ | README "Structure" still claimed 3 compositions (now 8) | Updated |
+
+**Still open (deferred, low):** `marketing/video/package.json` has no `engines` field pinning Node (the root app does); `theme.ts` `fontFamilyHeading`/`fontFamilyBody` are identical strings — collapse to one token if heading/body never diverge.
+
 ---
 
 ## How to update this file

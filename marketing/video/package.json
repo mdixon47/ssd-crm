@@ -1,0 +1,29 @@
+{
+  "name": "ssd-marketing-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Remotion video pipeline for SSD Consulting marketing (self-contained, React — does NOT touch the Nuxt app)",
+  "scripts": {
+    "dev": "remotion studio",
+    "studio": "remotion studio",
+    "render:vertical": "remotion render HeroAd-Vertical out/ssd-hero-vertical.mp4",
+    "render:wide": "remotion render HeroAd-Wide out/ssd-hero-wide.mp4",
+    "render:square": "remotion render HeroAd-Square out/ssd-hero-square.mp4",
+    "render:all": "npm run render:wide && npm run render:vertical && npm run render:square",
+    "render:hookpack": "remotion render HookPack-A-Pain out/ssd-hook-a-pain.mp4 && remotion render HookPack-B-Curiosity out/ssd-hook-b-curiosity.mp4 && remotion render HookPack-C-Outcome out/ssd-hook-c-outcome.mp4",
+    "render:adcut": "remotion render AdCut-Vertical out/ssd-adcut-vertical.mp4 && remotion render AdCut-Square out/ssd-adcut-square.mp4",
+    "still": "remotion still HeroAd-Wide out/ssd-hero-thumb.png --frame=540",
+    "upgrade": "remotion upgrade"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.290",
+    "@remotion/google-fonts": "4.0.290",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "remotion": "4.0.290"
+  },
+  "devDependencies": {
+    "@types/react": "19.0.0",
+    "typescript": "5.7.3"
+  }
+}
