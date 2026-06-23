@@ -10,6 +10,7 @@ import { createCRMMCPServer } from '~/server/mcp/crm/index'
 import { createGoogleAdsMCPServer } from '~/server/mcp/google-ads/index'
 import { createMetaAdsMCPServer } from '~/server/mcp/meta-ads/index'
 import { createLinkedInAdsMCPServer } from '~/server/mcp/linkedin-ads/index'
+import { createGoogleAnalyticsMCPServer } from '~/server/mcp/google-analytics/index'
 
 export default defineEventHandler(async (event) => {
   const serverName = getRouterParam(event, 'server') as string
@@ -27,6 +28,9 @@ export default defineEventHandler(async (event) => {
       break
     case 'linkedin-ads':
       mcpServer = createLinkedInAdsMCPServer()
+      break
+    case 'google-analytics':
+      mcpServer = createGoogleAnalyticsMCPServer()
       break
     default:
       throw createError({ statusCode: 404, message: `MCP server not found: ${serverName}` })

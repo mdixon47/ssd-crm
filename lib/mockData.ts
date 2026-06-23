@@ -2,7 +2,7 @@
 // Mock data for campaigns & social — used when real API keys
 // are not configured. Swap for live API calls in production.
 // ============================================================
-import type { Campaign, SocialPlatformData } from '~/types'
+import type { Campaign, SocialPlatformData, GAChannelStat, GALandingPage, GAConversionEvent } from '~/types'
 
 export const GOOGLE_CAMPAIGNS: Campaign[] = [
   {
@@ -264,3 +264,41 @@ export const MOCK_SEARCH_TERMS = [
   { term: 'therapist near me', campaign: 'Behavioral Health Consulting', platform: 'google', impressions: 920, clicks: 44, cost: 157, conversions: 0, label: 'negative' },
   { term: 'crisis counseling training', campaign: 'Behavioral Health Consulting', platform: 'google', impressions: 410, clicks: 21, cost: 142, conversions: 1, label: 'watch' },
 ]
+
+// ============================================================
+// Google Analytics 4 (website) — 30-day baseline.
+// The server util (server/utils/googleAnalytics.ts) scales these
+// volume metrics for shorter/longer ranges and builds the timeseries.
+// ============================================================
+export const MOCK_GA_CHANNELS: GAChannelStat[] = [
+  { channel: 'Organic Search', sessions: 4200, users: 3500, conversions: 38, engagementRate: 0.61 },
+  { channel: 'Paid Search', sessions: 3100, users: 2700, conversions: 52, engagementRate: 0.58 },
+  { channel: 'Direct', sessions: 1800, users: 1500, conversions: 14, engagementRate: 0.55 },
+  { channel: 'Paid Social', sessions: 1500, users: 1300, conversions: 19, engagementRate: 0.47 },
+  { channel: 'Referral', sessions: 720, users: 600, conversions: 6, engagementRate: 0.50 },
+  { channel: 'Organic Social', sessions: 540, users: 480, conversions: 4, engagementRate: 0.44 },
+  { channel: 'Email', sessions: 380, users: 300, conversions: 9, engagementRate: 0.66 },
+]
+
+export const MOCK_GA_LANDING_PAGES: GALandingPage[] = [
+  { path: '/lp/paid-acquisition-audit', sessions: 2100, conversions: 64, conversionRate: 0.0305, bounceRate: 0.32 },
+  { path: '/', sessions: 3400, conversions: 22, conversionRate: 0.0065, bounceRate: 0.46 },
+  { path: '/pricing', sessions: 1450, conversions: 18, conversionRate: 0.0124, bounceRate: 0.39 },
+  { path: '/services/google-ads', sessions: 980, conversions: 12, conversionRate: 0.0122, bounceRate: 0.41 },
+  { path: '/case-studies', sessions: 760, conversions: 7, conversionRate: 0.0092, bounceRate: 0.37 },
+  { path: '/blog/reduce-cost-per-lead', sessions: 540, conversions: 3, conversionRate: 0.0056, bounceRate: 0.58 },
+]
+
+export const MOCK_GA_CONVERSION_EVENTS: GAConversionEvent[] = [
+  { event: 'generate_lead', count: 142, value: 11360 },
+  { event: 'book_consultation', count: 58, value: 14500 },
+  { event: 'contact_form_submit', count: 96, value: 0 },
+  { event: 'newsletter_signup', count: 210, value: 0 },
+]
+
+// Baseline scalar metrics for the 30-day window (rates/durations don't scale).
+export const MOCK_GA_BASELINE = {
+  newUsersRatio: 0.62, // newUsers / users
+  engagementRate: 0.57, // session-weighted average
+  avgSessionDuration: 124, // seconds
+}

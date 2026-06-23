@@ -100,6 +100,7 @@ const navLinks = [
   { to: '/contracts', label: 'Contracts', icon: '📝' },
   { to: '/pricing', label: 'Pricing Sheet', icon: '💰' },
   { to: '/campaigns', label: 'Campaigns', icon: '📢' },
+  { to: '/analytics', label: 'Web Analytics', icon: '🌐' },
   { to: '/search-terms', label: 'Search Terms', icon: '🔍' },
   { to: '/negative-keywords', label: 'Negative Keywords', icon: '🚫' },
   { to: '/weekly-audit', label: 'Weekly Audit', icon: '✅' },

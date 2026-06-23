@@ -514,6 +514,57 @@ export interface MCPToolCall {
   arguments: Record<string, unknown>
 }
 
+// ------------------------------------------------------------
+// Google Analytics 4 (website analytics)
+// ------------------------------------------------------------
+export type GADateRange = 'LAST_7_DAYS' | 'LAST_14_DAYS' | 'LAST_30_DAYS' | 'LAST_90_DAYS'
+
+export interface GATrafficPoint {
+  date: string // YYYY-MM-DD
+  sessions: number
+  users: number
+}
+
+export interface GAChannelStat {
+  channel: string // e.g. "Organic Search", "Paid Search", "Paid Social"
+  sessions: number
+  users: number
+  conversions: number
+  engagementRate: number // 0..1
+}
+
+export interface GALandingPage {
+  path: string
+  sessions: number
+  conversions: number
+  conversionRate: number // 0..1
+  bounceRate: number // 0..1
+}
+
+export interface GAConversionEvent {
+  event: string
+  count: number
+  value: number
+}
+
+export interface GAOverview {
+  mode: 'live' | 'mock'
+  range: GADateRange
+  totals: {
+    sessions: number
+    users: number
+    newUsers: number
+    conversions: number
+    conversionValue: number
+    engagementRate: number // 0..1
+    avgSessionDuration: number // seconds
+  }
+  timeseries: GATrafficPoint[]
+  channels: GAChannelStat[]
+  topLandingPages: GALandingPage[]
+  conversionEvents: GAConversionEvent[]
+}
+
 export interface MCPToolResult {
   content: Array<{ type: 'text'; text: string }>
   isError?: boolean

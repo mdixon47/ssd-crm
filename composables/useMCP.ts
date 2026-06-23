@@ -5,7 +5,7 @@
 // ============================================================
 import type { MCPToolResult } from '~/types'
 
-type MCPServer = 'crm' | 'google-ads' | 'meta-ads' | 'linkedin-ads'
+type MCPServer = 'crm' | 'google-ads' | 'meta-ads' | 'linkedin-ads' | 'google-analytics'
 
 export function useMCP() {
   const loading = ref(false)
@@ -93,9 +93,21 @@ export function useMCP() {
       callTool('linkedin-ads', 'get_analytics', { campaignId }),
   }
 
+  // ── Google Analytics (GA4) tools ─────────────────────────
+  const googleAnalytics = {
+    getTrafficOverview: (dateRange?: string) =>
+      callTool('google-analytics', 'get_traffic_overview', dateRange ? { date_range: dateRange } : {}),
+    getAcquisitionChannels: (dateRange?: string) =>
+      callTool('google-analytics', 'get_acquisition_channels', dateRange ? { date_range: dateRange } : {}),
+    getTopLandingPages: (dateRange?: string) =>
+      callTool('google-analytics', 'get_top_landing_pages', dateRange ? { date_range: dateRange } : {}),
+    getConversions: (dateRange?: string) =>
+      callTool('google-analytics', 'get_conversions', dateRange ? { date_range: dateRange } : {}),
+  }
+
   return {
     loading, error,
     callTool,
-    crm, googleAds, metaAds, linkedinAds,
+    crm, googleAds, metaAds, linkedinAds, googleAnalytics,
   }
 }

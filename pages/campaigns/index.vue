@@ -28,6 +28,21 @@
 
     <!-- Google Ads Campaigns -->
     <div v-if="tab === 'google'">
+      <!-- Website analytics context (GA4) — joins paid traffic to on-site behavior -->
+      <div v-if="gaChannels.length" class="rounded-xl p-5 mb-6" style="background:#0d1628;border:1px solid rgba(148,163,184,0.1)">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-sm font-semibold text-slate-300">🌐 Website Traffic by Channel (GA4, 30d)</div>
+          <NuxtLink to="/analytics" class="text-xs text-cyan-400 hover:text-cyan-300">Full analytics →</NuxtLink>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div v-for="c in gaTopChannels" :key="c.channel" class="rounded-lg px-3 py-2.5" style="background:#0b1120;border:1px solid rgba(148,163,184,0.07)">
+            <div class="text-xs text-slate-500 mb-0.5 truncate">{{ c.channel }}</div>
+            <div class="font-bold text-slate-100">{{ c.sessions.toLocaleString() }} <span class="text-xs font-normal text-slate-500">sessions</span></div>
+            <div class="text-xs text-emerald-400 mt-0.5">{{ c.conversions.toLocaleString() }} conversions</div>
+          </div>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
         <div
           v-for="campaign in GOOGLE_CAMPAIGNS"
@@ -331,9 +346,16 @@
 <script setup lang="ts">
 import EmailCampaignModal from '~/components/campaigns/EmailCampaignModal.vue'
 import { GOOGLE_CAMPAIGNS, SOCIAL_PLATFORMS } from '~/lib/mockData'
-import type { EmailCampaign, EmailCampaignRecipient } from '~/types'
+import type { EmailCampaign, EmailCampaignRecipient, GAOverview, GAChannelStat } from '~/types'
 
 const tab = ref<'google' | 'social' | 'email'>('google')
+
+// Website analytics (GA4) shown alongside Google Ads campaigns.
+const { data: gaData } = await useFetch<{ data: GAOverview }>('/api/analytics', {
+  query: { range: 'LAST_30_DAYS' },
+})
+const gaChannels = computed<GAChannelStat[]>(() => gaData.value?.data.channels ?? [])
+const gaTopChannels = computed(() => [...gaChannels.value].sort((a, b) => b.sessions - a.sessions).slice(0, 4))
 
 // ── Email campaigns ──────────────────────────────────────────
 const showComposer = ref(false)

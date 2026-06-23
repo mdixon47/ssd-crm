@@ -10,7 +10,7 @@
 // All recommendations require explicit human approval.
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
-import type { AuditReport, Campaign, Lead, SearchTerm, NegativeKeyword } from '~/types'
+import type { AuditReport, Campaign, Lead, SearchTerm, NegativeKeyword, GAOverview } from '~/types'
 import { CLAUDE_SONNET } from '~/lib/models'
 
 const SYSTEM_PROMPT = `You are SSD Consulting's senior paid acquisition strategist. Your job is to run a comprehensive weekly audit of all paid channels.
@@ -47,10 +47,11 @@ export async function runWeeklyAuditAgent(
     leads: Lead[]
     searchTerms: SearchTerm[]
     negativeKeywords: NegativeKeyword[]
+    webAnalytics?: GAOverview
     weekDate?: string
   },
 ): Promise<AuditReport> {
-  const { campaigns, leads, searchTerms, negativeKeywords, weekDate } = context
+  const { campaigns, leads, searchTerms, negativeKeywords, webAnalytics, weekDate } = context
   const modelUsed = CLAUDE_SONNET
   let _totalTokens = 0
 
@@ -85,6 +86,11 @@ export async function runWeeklyAuditAgent(
       description: 'Analyzes budget allocation efficiency across campaigns and recommends shifts',
       input_schema: { type: 'object' as const, properties: {}, required: [] },
     },
+    {
+      name: 'get_website_analytics',
+      description: 'Returns Google Analytics 4 website data: traffic totals, acquisition channels (Organic vs Paid), top landing pages with conversion/bounce rates, and conversion events. Use to assess landing page performance and cross-check paid traffic against on-site behavior.',
+      input_schema: { type: 'object' as const, properties: {}, required: [] },
+    },
   ]
 
   const messages: Anthropic.MessageParam[] = [
@@ -95,6 +101,7 @@ Week: ${weekDate || new Date().toISOString().slice(0, 10)}
 Total campaigns: ${campaigns.length}
 Total leads this period: ${leads.filter(l => new Date(l.lead_date) > new Date(Date.now() - 7 * 86400 * 1000)).length}
 Search terms to review: ${searchTerms.length}
+Website analytics (GA4): ${webAnalytics ? `${webAnalytics.mode} data — ${webAnalytics.totals.sessions.toLocaleString()} sessions, ${webAnalytics.totals.conversions} conversions across ${webAnalytics.channels.length} channels` : 'not available'}
 
 Use all available tools to gather data, then produce a comprehensive audit report.`,
     },
@@ -124,7 +131,7 @@ Use all available tools to gather data, then produce a comprehensive audit repor
 
       for (const block of toolUseBlocks) {
         if (block.type !== 'tool_use') continue
-        const result = handleAuditTool(block.name, campaigns, leads, searchTerms, negativeKeywords)
+        const result = handleAuditTool(block.name, campaigns, leads, searchTerms, negativeKeywords, webAnalytics)
         toolResults.push({
           type: 'tool_result',
           tool_use_id: block.id,
@@ -204,8 +211,21 @@ function handleAuditTool(
   leads: Lead[],
   searchTerms: SearchTerm[],
   negativeKeywords: NegativeKeyword[],
+  webAnalytics?: GAOverview,
 ): unknown {
   switch (name) {
+    case 'get_website_analytics':
+      return webAnalytics
+        ? {
+            mode: webAnalytics.mode,
+            range: webAnalytics.range,
+            totals: webAnalytics.totals,
+            channels: webAnalytics.channels,
+            top_landing_pages: webAnalytics.topLandingPages,
+            conversion_events: webAnalytics.conversionEvents,
+          }
+        : { error: 'Website analytics not available for this audit run.' }
+
     case 'get_campaign_performance':
       return campaigns.map(c => ({
         name: c.name,
