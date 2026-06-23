@@ -48,6 +48,10 @@ updates:
       # Major Nuxt upgrades are coordinated manually
       - dependency-name: 'nuxt'
         update-types: ['version-update:semver-major']
+      # @types/node major must track the engines range (package.json: node
+      # >=22 <25 → Node 24 types). Bump manually when the Node range moves.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: '/'
