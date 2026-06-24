@@ -120,24 +120,45 @@ ${JSON.stringify(inventory)}
 
 Produce: an overall health rating, up to 6 prioritized recommendations, up to 5 fresh post ideas tailored to ${name}, and lists of campaigns to scale and to pause/review. Reference campaigns/posts by name.`
 
-  const response = await client.messages.create({
-    model: modelUsed,
-    max_tokens: 2500,
-    system: SYSTEM_PROMPT,
-    tools: [SUBMIT_STRATEGY],
-    tool_choice: { type: 'tool', name: 'submit_strategy' },
-    messages: [{ role: 'user', content: userPrompt }],
-  })
-
-  const tokensUsed = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
-  const block = response.content.find(b => b.type === 'tool_use')
-
   const base = {
     generated_at: new Date().toISOString(),
     platform: platformKey,
     model_used: modelUsed,
-    tokens_used: tokensUsed,
+    tokens_used: 0,
   }
+
+  // Bound the call well under Netlify's 26s function limit. A single forced-tool
+  // Sonnet call normally completes in ~10s; cap retries/timeout so a transient
+  // upstream 5xx/overload returns a clean fallback instead of a 504.
+  let response: Anthropic.Message
+  try {
+    response = await client.messages.create(
+      {
+        model: modelUsed,
+        max_tokens: 2500,
+        system: SYSTEM_PROMPT,
+        tools: [SUBMIT_STRATEGY],
+        tool_choice: { type: 'tool', name: 'submit_strategy' },
+        messages: [{ role: 'user', content: userPrompt }],
+      },
+      { timeout: 22_000, maxRetries: 1 },
+    )
+  }
+  catch (err) {
+    console.error('[social-strategy] Anthropic call failed:', err)
+    return {
+      ...base,
+      health: 'needs_attention',
+      recommendations: [],
+      post_ideas: [],
+      scale_candidates: [],
+      pause_candidates: [],
+      summary: 'The strategist timed out or the AI service was unavailable — please retry in a moment.',
+    }
+  }
+
+  base.tokens_used = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
+  const block = response.content.find(b => b.type === 'tool_use')
 
   if (!block || block.type !== 'tool_use') {
     return {
