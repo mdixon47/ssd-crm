@@ -6,17 +6,22 @@
 //
 // Architecture: the four data "tools" are pure functions of the
 // platform object, so they're computed server-side up front and
-// injected into the prompt. A SINGLE forced-tool Sonnet call then
-// returns the structured strategy directly — no agentic loop and
-// no separate JSON-conversion call. This keeps the request well
-// under the 26s serverless function limit (previously 504'd).
+// injected into the prompt. A SINGLE forced-tool call then returns
+// the structured strategy directly — no agentic loop and no separate
+// JSON-conversion call.
+//
+// Model + output size are tuned for the 26s serverless wall: Sonnet
+// generating the full strategy measured 32-57s (over the limit, often
+// truncated at the token cap) -> 504. Haiku with a leaner output target
+// (~750-810 tokens) completes in ~6-8s with comfortable margin. The
+// output is advisory and human-approved, so Haiku's quality is ample.
 //
 // ⚠️  READ ONLY. Recommendations require human approval before
 // any spend, audience, or campaign change is implemented.
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { SocialPlatformData, SocialStrategyOutput } from '~/types'
-import { CLAUDE_SONNET } from '~/lib/models'
+import { CLAUDE_HAIKU } from '~/lib/models'
 
 const PLATFORM_NAMES: Record<string, string> = { fb: 'Facebook', ig: 'Instagram', li: 'LinkedIn' }
 
@@ -52,7 +57,7 @@ const SUBMIT_STRATEGY: Anthropic.Tool = {
       health: { type: 'string', enum: ['strong', 'moderate', 'needs_attention'] },
       recommendations: {
         type: 'array',
-        description: 'Up to 6, highest priority first',
+        description: 'Up to 4, highest priority first. Keep each rationale to one short sentence.',
         items: {
           type: 'object',
           properties: {
@@ -66,7 +71,7 @@ const SUBMIT_STRATEGY: Anthropic.Tool = {
       },
       post_ideas: {
         type: 'array',
-        description: 'Up to 5 platform-tailored ideas',
+        description: 'Up to 3 platform-tailored ideas',
         items: {
           type: 'object',
           properties: {
@@ -92,7 +97,7 @@ export async function runSocialMediaAgent(
   platformKey: 'fb' | 'ig' | 'li',
   platform: SocialPlatformData,
 ): Promise<SocialStrategyOutput> {
-  const modelUsed = CLAUDE_SONNET
+  const modelUsed = CLAUDE_HAIKU
   const name = PLATFORM_NAMES[platformKey]
 
   // Compute every "tool" result up front — they're pure functions of `platform`.
@@ -118,7 +123,7 @@ ${JSON.stringify(engagement)}
 AUDIENCES & AD FORMATS:
 ${JSON.stringify(inventory)}
 
-Produce: an overall health rating, up to 6 prioritized recommendations, up to 5 fresh post ideas tailored to ${name}, and lists of campaigns to scale and to pause/review. Reference campaigns/posts by name.`
+Produce: an overall health rating, up to 4 prioritized recommendations (one-sentence rationales), up to 3 fresh post ideas tailored to ${name}, lists of campaigns to scale and to pause/review, and a 2-sentence summary. Be concise. Reference campaigns/posts by name.`
 
   const base = {
     generated_at: new Date().toISOString(),
@@ -127,22 +132,18 @@ Produce: an overall health rating, up to 6 prioritized recommendations, up to 5 
     tokens_used: 0,
   }
 
-  // Bound the call well under Netlify's 26s function limit. A single forced-tool
-  // Sonnet call normally completes in ~10s; cap retries/timeout so a transient
-  // upstream 5xx/overload returns a clean fallback instead of a 504.
+  // The shared client bounds this at 23s / no-retry (see server/utils/anthropic.ts),
+  // so a slow/overloaded upstream returns the graceful fallback below instead of a 504.
   let response: Anthropic.Message
   try {
-    response = await client.messages.create(
-      {
-        model: modelUsed,
-        max_tokens: 2500,
-        system: SYSTEM_PROMPT,
-        tools: [SUBMIT_STRATEGY],
-        tool_choice: { type: 'tool', name: 'submit_strategy' },
-        messages: [{ role: 'user', content: userPrompt }],
-      },
-      { timeout: 22_000, maxRetries: 1 },
-    )
+    response = await client.messages.create({
+      model: modelUsed,
+      max_tokens: 1500,
+      system: SYSTEM_PROMPT,
+      tools: [SUBMIT_STRATEGY],
+      tool_choice: { type: 'tool', name: 'submit_strategy' },
+      messages: [{ role: 'user', content: userPrompt }],
+    })
   }
   catch (err) {
     console.error('[social-strategy] Anthropic call failed:', err)
