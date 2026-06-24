@@ -9,16 +9,18 @@ Severity: **🔴 Critical** · **🟡 Medium** · **⚪ Low**
 
 ## 🔴 Critical — needs action now
 
-### 1. Rotate keys pasted to chat transcript
-Keys handed to the agent through chat are recorded in a log surface that cannot be edited retroactively. Although none of them reached any committed file (scan confirmed they only live in `.env`, which is gitignored), the leaked strings are still readable in the transcript until each key is invalidated upstream.
+### 1. Rotate keys exposed to chat transcript / working tree
+Keys handed to the agent through chat (or pasted into a working-tree file) are recorded in a log surface that cannot be edited retroactively. None reached a committed file (they live only in `.env`, gitignored), but the leaked strings stay readable in the transcript until each key is invalidated upstream.
 
-| Key | Where to rotate | Impact if compromised |
+| Key | Status | Where to rotate |
 |---|---|---|
-| `SUPABASE_SERVICE_KEY` | https://app.supabase.com/project/ngjpdngzhrwhxxduwmlx/settings/api-keys | Bypasses RLS — full DB read/write |
-| `ANTHROPIC_API_KEY` | https://console.anthropic.com/settings/keys | Billable API usage |
-| `SUPABASE_KEY` (publishable) | Same Supabase API page | Low — designed to be browser-exposed |
+| `ANTHROPIC_API_KEY` | ✅ Rotated 2026-06-23 | https://console.anthropic.com/settings/keys |
+| `SUPABASE_SERVICE_KEY` | ⏳ Pending | https://app.supabase.com/project/ngjpdngzhrwhxxduwmlx/settings/api-keys |
+| `SUPABASE_KEY` (publishable) | Low — browser-exposed by design | Same Supabase API page |
 
-After rotation, paste the new values directly into `.env` (not through chat) and restart `npm run dev`.
+After rotation, paste new values directly into `.env` (not through chat), update the matching **Netlify** env var, and restart `npm run dev`.
+
+> 2026-06-23: a live `ANTHROPIC_API_KEY` was briefly pasted into the working-tree `.env.example` (never committed); scrubbed to a placeholder in `a5f5380` and the key rotated. The GA4 service-account key + its `~/Downloads/*.json` were used this session — rotate that key too if you consider the file exposed (it currently lives in `.env` + Netlify, both fine).
 
 ---
 
@@ -95,23 +97,13 @@ The CodeQL upload step needs *Code scanning* turned on in repo settings (*Settin
 ### 18. zod v4 upgrade — eligible to attempt
 The 2026-06-08 baseline-fix unblocks v4 evaluation. Source-level migration is required, not just a version bump: `z.string().email()` → `z.email()` (5 sites), `z.string().uuid()` → `z.uuid()` (1 site), and any reader of `ZodError.errors` must move to `.issues`. Affected files: `server/api/{email/draft,email/send,leads/index,ai/email-strategy,ai/social-strategy}.post.ts` and `server/mcp/*/index.ts`. **Exit criteria**: unignore via Dependabot or bump locally, apply renames, run `npm run typecheck` + `npm run build`, decide whether to keep the `overrides.zod` pin (the MCP SDK ships v4 natively, so the override likely becomes unnecessary).
 
-### 19. `marketing/video/` (Remotion) — code review 2026-06-22
-High-effort review of the new Remotion marketing-video project. `tsc --noEmit` is clean and all 8 compositions render. The following were found **and fixed** this session (kept here briefly for traceability; remove once confirmed in CI):
+### 19. `marketing/video/` (Remotion) — deferred low items
+The 2026-06-22 code-review fixes shipped and are CI-green (see [`update.md`](./update.md), 2026-06-22). Remaining deferred:
+- `marketing/video/package.json` has no `engines` field pinning Node (the root app does).
+- `theme.ts` `fontFamilyHeading`/`fontFamilyBody` are identical strings — collapse to one token if heading/body never diverge.
 
-| # | Severity | Issue | Fix |
-|---|---|---|---|
-| a | 🟡 | `loadFont()` called with no args fetched **all** Inter weights/subsets/styles (~100+ files; "too many requests" warning) and is a hard error in Remotion v5 | Centralized in `src/font.ts` with `loadFont("normal", { weights: ["500".."900"], subsets: ["latin"] })`; warning gone |
-| b | 🟡 | `Scene.tsx` fade `interpolate` range becomes non-monotonic for any scene ≤ `2*fade` frames → `interpolate()` throws | Clamp `fade` to `< durationInFrames/2` |
-| c | ⚪ | `still` thumbnail rendered at frame 420 = the Proof scene, foregrounding the **placeholder metrics** the docs warn never to publish | Moved to frame 540 (CTA/logo) |
-| d | ⚪ | CTA button markup duplicated verbatim in `scenes/CTA.tsx` and `AdCut.tsx` | Extracted `components/CtaButton.tsx` |
-| e | ⚪ | `HOOK_VARIANTS` "A-Pain" duplicated `DEFAULT_HOOK` → A/B control could silently drift from the live hero ad | A-Pain now references `DEFAULT_HOOK` |
-| f | ⚪ | `FPS`/`sec()` redeclared in `Root.tsx`/`HeroAd.tsx`/`AdCut.tsx` (drift risk) | Single source in `theme.ts` |
-| g | ⚪ | `Background.tsx` SVG `<pattern id="grid">` used a document-global id (collision if two Backgrounds mount) | `useId()`-based id |
-| h | ⚪ | Partial `hook` prop override could blank the headline (default-param only fired on fully-undefined) | Per-field merge with `DEFAULT_HOOK` in `Hook.tsx` |
-| i | ⚪ | `Scene.tsx` imported `useVideoConfig` in a second redundant `import` | Merged imports |
-| j | ⚪ | README "Structure" still claimed 3 compositions (now 8) | Updated |
-
-**Still open (deferred, low):** `marketing/video/package.json` has no `engines` field pinning Node (the root app does); `theme.ts` `fontFamilyHeading`/`fontFamilyBody` are identical strings — collapse to one token if heading/body never diverge.
+### 25. GA4: no key events marked as conversions
+The GA4 integration is live and verified, but live data returns `conversions: 0` because no events are marked as **key events** (conversions) in the property. The conversions sections of `/analytics` and the `get_website_analytics` data fed to `WeeklyAuditAgent` stay empty until this is configured. Fix in **GA4 Admin → Events** — mark events such as `generate_lead` / `book_consultation` as key events. (Also seen in live data: an occasional `/?auth_error=invalid_state` landing path, suggesting a rare OAuth redirect hiccup on the site — unrelated to GA, worth a glance.)
 
 ---
 

@@ -5,6 +5,44 @@ See [`README.md`](./README.md) for the architecture overview, [`issues.md`](./is
 
 ---
 
+## 2026-06-23 (Google Analytics 4 integration + content-create 504 fix + security)
+
+### Google Analytics 4 — live website analytics connected (`feat c357dfa`)
+
+Pulls GA4 traffic/acquisition/conversion data into the CRM, slotting into the existing per-source MCP pattern.
+
+- **MCP server** `server/mcp/google-analytics/` (tools: `get_traffic_overview`, `get_acquisition_channels`, `get_top_landing_pages`, `get_conversions`), registered in the MCP gateway.
+- **Shared data layer** `server/utils/googleAnalytics.ts` — reads the live GA4 Data API (`@google-analytics/data`) when `GA4_PROPERTY_ID` + service-account creds are set, else scaled mock data. Used by both the MCP server **and** the REST endpoint (DRY).
+- **Surfaces:** `GET /api/analytics?range=…`, new `pages/analytics/index.vue` dashboard (+ nav link), a GA channel panel merged into the Campaigns view, and a `get_website_analytics` tool fed to `WeeklyAuditAgent`.
+- Types, mock dataset (`lib/mockData.ts`), `useMCP` accessors, and unit tests added.
+- **Live-verified** against property `367191792` (real sessions/channels/landing pages returned). Required setup: enabled the *Google Analytics Data API* in GCP project `ssdoauthproject` (via gcloud), added the service-account email as a GA4 **property Viewer**, and set `GA4_*` env vars locally + on **Netlify** (`GA4_PRIVATE_KEY` + `GA4_CLIENT_EMAIL` marked secret). Note: live `conversions: 0` until key events are configured — see issues.md #25.
+
+### content-create 504 eliminated (`fix a698a48`)
+
+`ContentPublishingAgent` ran an up-to-5-iteration **serial** tool loop; `platform: "all"` generated 4 pieces sequentially → exceeded the 26s Netlify function limit → 504. Rewritten to prefetch CRM context server-side (no model round-trips) and generate each platform's piece as a single forced-tool Sonnet call, run **in parallel** (`Promise.allSettled`). Wall-clock ≈ one model call instead of the sum; per-platform failures tolerated. Function signature + return contract (`savedIds`, `strategy_notes`) unchanged, so the UI, A2A endpoint, and `CRMOperationsAgent` are unaffected. 3 new tests.
+
+### Security — scrub live key from `.env.example` (`chore a5f5380`)
+
+A live `ANTHROPIC_API_KEY` had been pasted into the working-tree `.env.example` (never committed). Scrubbed to a placeholder and the key rotated; added `GA4_*` documentation to the example file. See issues.md #1.
+
+---
+
+## 2026-06-22 (Remotion marketing video pipeline + dependency updates + CI)
+
+### Remotion video marketing pipeline (`feat 1bd5cc4`)
+
+Self-contained React/Remotion project under `marketing/video/` (own deps + tsconfig; does **not** touch the Nuxt app — colocated only). Renders the SSD Consulting hero ad in three aspect ratios (16:9 / 9:16 / 1:1), a hook A/B variant pack, and a 6s retargeting bumper; brand-locked to the Nuxt theme. Plus `marketing/video-marketing-strategy.md` and how-to / AI-keys docs. A high-effort code review applied 10 fixes (v5-safe parameterized font loading, clamped `Scene` fades, shared `CtaButton`, unique SVG pattern ids, centralized `FPS`/`sec`, off-placeholder thumbnail frame) — see issues.md #19.
+
+### CI — exclude `marketing/` from the Nuxt toolchain (`fix 7a576f7`)
+
+Root `eslint .` and `nuxt typecheck` (vue-tsc) were sweeping the React project (whose deps aren't installed at root) → Lint + Typecheck failures. Added `marketing` to the ESLint `ignores` and `typescript.tsConfig.exclude: ['../marketing']` in `nuxt.config.ts`. The Remotion project keeps its own `tsc --noEmit`.
+
+### Dependency updates (Dependabot #18 / #19 / #20 merged)
+
+`actions/checkout` 6→7, `@anthropic-ai/sdk` 0.104→0.105 (ai-stack group), `@types/node` 24→26 — then **pinned `@types/node` back to `^24`** to match `engines: node >=22 <25`, with a Dependabot ignore for its major bumps (`fix 219e26a`).
+
+---
+
 ## 2026-06-17 (Migrations applied + CI fixed + dependencies updated)
 
 ### Supabase migrations — all pending migrations applied to live project (003–010)
