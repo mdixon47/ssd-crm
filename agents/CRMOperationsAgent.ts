@@ -18,7 +18,11 @@ import type { createSupabaseClient } from '~/server/utils/supabase'
 
 type SupabaseClient = ReturnType<typeof createSupabaseClient>
 
-const MAX_ITER = 8
+// Bounded to keep a single chat turn under the 26s serverless limit. Tool-use
+// turns are short (~2-4s); the final reply dominates. Each iteration is one
+// Sonnet call, so 6 caps worst-case wall-clock while still allowing multi-step
+// flows. (The sub-agents this can delegate to — content/social — are single-call.)
+const MAX_ITER = 6
 
 export interface CRMActionLog {
   tool: string

@@ -17,9 +17,17 @@ Pulls GA4 traffic/acquisition/conversion data into the CRM, slotting into the ex
 - Types, mock dataset (`lib/mockData.ts`), `useMCP` accessors, and unit tests added.
 - **Live-verified** against property `367191792` (real sessions/channels/landing pages returned). Required setup: enabled the *Google Analytics Data API* in GCP project `ssdoauthproject` (via gcloud), added the service-account email as a GA4 **property Viewer**, and set `GA4_*` env vars locally + on **Netlify** (`GA4_PRIVATE_KEY` + `GA4_CLIENT_EMAIL` marked secret). Note: live `conversions: 0` until key events are configured — see issues.md #25.
 
-### content-create 504 eliminated (`fix a698a48`)
+### AI agent 504 timeouts eliminated (`fix a698a48`, `ff8f87c`, + agent sweep)
 
-`ContentPublishingAgent` ran an up-to-5-iteration **serial** tool loop; `platform: "all"` generated 4 pieces sequentially → exceeded the 26s Netlify function limit → 504. Rewritten to prefetch CRM context server-side (no model round-trips) and generate each platform's piece as a single forced-tool Sonnet call, run **in parallel** (`Promise.allSettled`). Wall-clock ≈ one model call instead of the sum; per-platform failures tolerated. Function signature + return contract (`savedIds`, `strategy_notes`) unchanged, so the UI, A2A endpoint, and `CRMOperationsAgent` are unaffected. 3 new tests.
+Several AI endpoints ran multi-iteration **serial** tool loops (often plus a separate JSON-conversion call) that exceeded the 26s Netlify function limit → 504. In each, the "tools" were pure functions of already-available data, so the model round-trips were wasted latency. Fixed by computing tool data up front and collapsing to a **single forced-tool Sonnet call** (and parallelizing where pieces are independent). Return contracts/signatures unchanged, so UIs, the A2A endpoint, and `CRMOperationsAgent` are unaffected. 9 new agent tests.
+
+| Endpoint | Agent | Before | After |
+|---|---|---|---|
+| `/api/ai/content-create` | `ContentPublishingAgent` | ≤5-iter loop; 4 pieces serial for "all" | prefetch context + one forced-tool call **per platform in parallel** (`Promise.allSettled`) |
+| `/api/ai/social-strategy` | `SocialMediaAgent` | ≤4-iter loop (4096-tok last) + conversion call | precompute metrics + one forced-tool call |
+| `/api/ai/analyze-campaigns` | `CampaignOptimizerAgent` | ≤4-iter loop + conversion call | precompute metrics + one forced-tool call |
+| `/api/ai/weekly-audit` | `WeeklyAuditAgent` | ≤5-iter loop + conversion call | precompute all 7 tool outputs + one forced-tool call |
+| `/api/ai/crm-agent` | `CRMOperationsAgent` | interactive loop, `MAX_ITER=8` | bounded to `MAX_ITER=6` (genuine chat orchestrator — can't collapse; see issues.md #26) |
 
 ### Security — scrub live key from `.env.example` (`chore a5f5380`)
 

@@ -102,6 +102,9 @@ The 2026-06-22 code-review fixes shipped and are CI-green (see [`update.md`](./u
 - `marketing/video/package.json` has no `engines` field pinning Node (the root app does).
 - `theme.ts` `fontFamilyHeading`/`fontFamilyBody` are identical strings — collapse to one token if heading/body never diverge.
 
+### 26. `crm-agent` chat orchestrator can still approach the 26s limit
+The serial-loop 504s in the analysis agents were fixed by collapsing to a single forced-tool call (see update.md 2026-06-23). `CRMOperationsAgent` (`/api/ai/crm-agent`) is a genuine interactive chat orchestrator with dynamic tool routing + DB writes, so it can't be collapsed; it's bounded to `MAX_ITER=6` and its delegated sub-agents (content/social) are now single-call. A very complex multi-step request (many tool turns, or delegating heavy content generation mid-chat) could still approach the limit. The real fix is **streaming the response** (Netlify streaming / Nitro) or moving long operations to a **background function** — deferred until it's actually hit.
+
 ### 25. GA4: no key events marked as conversions
 The GA4 integration is live and verified, but live data returns `conversions: 0` because no events are marked as **key events** (conversions) in the property. The conversions sections of `/analytics` and the `get_website_analytics` data fed to `WeeklyAuditAgent` stay empty until this is configured. Fix in **GA4 Admin → Events** — mark events such as `generate_lead` / `book_consultation` as key events. (Also seen in live data: an occasional `/?auth_error=invalid_state` landing path, suggesting a rare OAuth redirect hiccup on the site — unrelated to GA, worth a glance.)
 

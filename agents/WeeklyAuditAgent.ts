@@ -38,7 +38,31 @@ OUTPUT REQUIREMENTS:
 - Flag anything that requires human judgment separately
 - Do not recommend automatic changes to live campaigns
 
-Remember: You analyze and recommend. Humans decide and act.`
+Remember: You analyze and recommend. Humans decide and act. Submit your full audit via the submit_audit tool.`
+
+const STR_ARRAY = { type: 'array' as const, items: { type: 'string' as const } }
+
+const SUBMIT_AUDIT: Anthropic.Tool = {
+  name: 'submit_audit',
+  description: 'Submit the completed weekly audit report.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      campaigns_to_scale: STR_ARRAY,
+      campaigns_to_pause: STR_ARRAY,
+      keywords_to_keep: STR_ARRAY,
+      keywords_to_remove: STR_ARRAY,
+      negative_keyword_suggestions: STR_ARRAY,
+      landing_page_issues: STR_ARRAY,
+      budget_recommendations: STR_ARRAY,
+      tracking_issues: STR_ARRAY,
+      questions_for_review: STR_ARRAY,
+      summary: { type: 'string' },
+      overall_health: { type: 'string', enum: ['strong', 'moderate', 'needs_attention'] },
+    },
+    required: ['summary', 'overall_health'],
+  },
+}
 
 export async function runWeeklyAuditAgent(
   client: Anthropic,
@@ -53,140 +77,46 @@ export async function runWeeklyAuditAgent(
 ): Promise<AuditReport> {
   const { campaigns, leads, searchTerms, negativeKeywords, webAnalytics, weekDate } = context
   const modelUsed = CLAUDE_SONNET
-  let _totalTokens = 0
 
-  const tools: Anthropic.Tool[] = [
-    {
-      name: 'get_campaign_performance',
-      description: 'Gets detailed performance metrics for all campaigns including ROAS, CPL, and trends',
-      input_schema: { type: 'object' as const, properties: {}, required: [] },
-    },
-    {
-      name: 'get_lead_quality_breakdown',
-      description: 'Analyzes lead quality, stage distribution, and revenue attribution by source',
-      input_schema: { type: 'object' as const, properties: {}, required: [] },
-    },
-    {
-      name: 'get_search_term_waste',
-      description: 'Identifies search terms spending budget on non-converting or wrong-audience queries',
-      input_schema: { type: 'object' as const, properties: {}, required: [] },
-    },
-    {
-      name: 'get_negative_keyword_gaps',
-      description: 'Cross-references search terms labeled "negative" against the current negative keyword list to find gaps',
-      input_schema: { type: 'object' as const, properties: {}, required: [] },
-    },
-    {
-      name: 'get_offline_conversion_candidates',
-      description: 'Returns leads that have converted to paying clients and are candidates for offline conversion upload to Google Ads',
-      input_schema: { type: 'object' as const, properties: {}, required: [] },
-    },
-    {
-      name: 'get_budget_optimization_analysis',
-      description: 'Analyzes budget allocation efficiency across campaigns and recommends shifts',
-      input_schema: { type: 'object' as const, properties: {}, required: [] },
-    },
-    {
-      name: 'get_website_analytics',
-      description: 'Returns Google Analytics 4 website data: traffic totals, acquisition channels (Organic vs Paid), top landing pages with conversion/bounce rates, and conversion events. Use to assess landing page performance and cross-check paid traffic against on-site behavior.',
-      input_schema: { type: 'object' as const, properties: {}, required: [] },
-    },
-  ]
+  // Every audit "tool" is a pure function of the injected context — compute them
+  // all up front and inject, so ONE forced-tool call replaces the old 5-iteration
+  // serial loop + separate JSON-conversion call (which together 504'd).
+  const tool = (name: string) => handleAuditTool(name, campaigns, leads, searchTerms, negativeKeywords, webAnalytics)
+  const data = {
+    campaign_performance: tool('get_campaign_performance'),
+    lead_quality: tool('get_lead_quality_breakdown'),
+    search_term_waste: tool('get_search_term_waste'),
+    negative_keyword_gaps: tool('get_negative_keyword_gaps'),
+    offline_conversion_candidates: tool('get_offline_conversion_candidates'),
+    budget_optimization: tool('get_budget_optimization_analysis'),
+    website_analytics: tool('get_website_analytics'),
+  }
 
-  const messages: Anthropic.MessageParam[] = [
-    {
-      role: 'user',
-      content: `Run the weekly paid acquisition audit for SSD Consulting.
+  const userPrompt = `Run the weekly paid acquisition audit for SSD Consulting, then submit it via submit_audit.
 Week: ${weekDate || new Date().toISOString().slice(0, 10)}
 Total campaigns: ${campaigns.length}
-Total leads this period: ${leads.filter(l => new Date(l.lead_date) > new Date(Date.now() - 7 * 86400 * 1000)).length}
-Search terms to review: ${searchTerms.length}
-Website analytics (GA4): ${webAnalytics ? `${webAnalytics.mode} data — ${webAnalytics.totals.sessions.toLocaleString()} sessions, ${webAnalytics.totals.conversions} conversions across ${webAnalytics.channels.length} channels` : 'not available'}
+Leads this period: ${leads.filter(l => new Date(l.lead_date) > new Date(Date.now() - 7 * 86400 * 1000)).length}
 
-Use all available tools to gather data, then produce a comprehensive audit report.`,
-    },
-  ]
+DATA (already gathered for you across all channels):
+${JSON.stringify(data)}
 
-  let rawAnalysis = ''
+Analyze all of it and produce the structured audit report — be specific and name campaigns, keywords, and landing pages.`
 
-  // Agentic loop (capped)
-  const MAX_ITERATIONS = 5
-  let iteration = 0
-  while (iteration < MAX_ITERATIONS) {
-    iteration++
-    const isLastIteration = iteration === MAX_ITERATIONS
-    const response = await client.messages.create({
-      model: modelUsed,
-      max_tokens: isLastIteration ? 4096 : 1024,
-      system: SYSTEM_PROMPT,
-      tools,
-      messages,
-    })
-
-    _totalTokens += (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
-
-    if (response.stop_reason === 'tool_use') {
-      const toolUseBlocks = response.content.filter(b => b.type === 'tool_use')
-      const toolResults: Anthropic.ToolResultBlockParam[] = []
-
-      for (const block of toolUseBlocks) {
-        if (block.type !== 'tool_use') continue
-        const result = handleAuditTool(block.name, campaigns, leads, searchTerms, negativeKeywords, webAnalytics)
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: block.id,
-          content: JSON.stringify(result),
-        })
-      }
-
-      messages.push({ role: 'assistant', content: response.content })
-      messages.push({ role: 'user', content: toolResults })
-    }
-    else {
-      const textBlock = response.content.find(b => b.type === 'text')
-      rawAnalysis = textBlock && textBlock.type === 'text' ? textBlock.text : ''
-      break
-    }
-  }
-
-  // Convert to structured AuditReport
-  const structuredResponse = await client.messages.create({
-    model: CLAUDE_SONNET,
+  const response = await client.messages.create({
+    model: modelUsed,
     max_tokens: 3000,
-    system: 'Return ONLY valid JSON. No markdown. Follow the schema exactly.',
-    messages: [
-      {
-        role: 'user',
-        content: `Convert this audit into this exact JSON schema:
-{
-  "generated_at": "${new Date().toISOString()}",
-  "campaigns_to_scale": [string],
-  "campaigns_to_pause": [string],
-  "keywords_to_keep": [string],
-  "keywords_to_remove": [string],
-  "negative_keyword_suggestions": [string],
-  "landing_page_issues": [string],
-  "budget_recommendations": [string],
-  "tracking_issues": [string],
-  "questions_for_review": [string],
-  "summary": string,
-  "overall_health": "strong"|"moderate"|"needs_attention"
-}
-
-Audit analysis to convert:
-${rawAnalysis}`,
-      },
-    ],
+    system: SYSTEM_PROMPT,
+    tools: [SUBMIT_AUDIT],
+    tool_choice: { type: 'tool', name: 'submit_audit' },
+    messages: [{ role: 'user', content: userPrompt }],
   })
 
-  try {
-    const raw = structuredResponse.content[0]?.type === 'text' ? structuredResponse.content[0].text : '{}'
-    const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    return JSON.parse(cleaned) as AuditReport
-  }
-  catch {
+  const generatedAt = new Date().toISOString()
+  const block = response.content.find(b => b.type === 'tool_use')
+
+  if (!block || block.type !== 'tool_use') {
     return {
-      generated_at: new Date().toISOString(),
+      generated_at: generatedAt,
       campaigns_to_scale: [],
       campaigns_to_pause: [],
       keywords_to_keep: [],
@@ -194,13 +124,27 @@ ${rawAnalysis}`,
       negative_keyword_suggestions: [],
       landing_page_issues: [],
       budget_recommendations: [],
-      tracking_issues: iteration >= MAX_ITERATIONS
-        ? [`Agent reached max iterations (${MAX_ITERATIONS}) — review raw response`]
-        : ['Failed to parse structured audit output'],
+      tracking_issues: ['Audit agent did not return a structured result — please retry'],
       questions_for_review: ['Review raw audit output manually'],
-      summary: rawAnalysis.slice(0, 1000),
+      summary: '',
       overall_health: 'needs_attention',
     }
+  }
+
+  const out = block.input as Partial<AuditReport>
+  return {
+    generated_at: generatedAt,
+    campaigns_to_scale: out.campaigns_to_scale ?? [],
+    campaigns_to_pause: out.campaigns_to_pause ?? [],
+    keywords_to_keep: out.keywords_to_keep ?? [],
+    keywords_to_remove: out.keywords_to_remove ?? [],
+    negative_keyword_suggestions: out.negative_keyword_suggestions ?? [],
+    landing_page_issues: out.landing_page_issues ?? [],
+    budget_recommendations: out.budget_recommendations ?? [],
+    tracking_issues: out.tracking_issues ?? [],
+    questions_for_review: out.questions_for_review ?? [],
+    summary: out.summary ?? '',
+    overall_health: out.overall_health ?? 'moderate',
   }
 }
 

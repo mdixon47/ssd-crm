@@ -32,7 +32,7 @@ const SYSTEM_PROMPT = `You are a Google Ads optimization expert for SSD Consulti
 - Grants Management Consulting
 - Behavioral Health Consulting
 
-Your job is to analyze campaign performance data and provide clear, actionable recommendations.
+Your job is to analyze campaign performance data and provide clear, actionable recommendations, then submit them via the submit_optimization tool.
 
 CRITICAL RULES:
 1. Never recommend automatic pauses or budget changes — always flag for human review
@@ -42,154 +42,121 @@ CRITICAL RULES:
 5. Always flag if qualified lead rate drops below 40%
 6. Suggest negative keywords based on waste patterns but do NOT add them automatically`
 
+const SUBMIT_OPTIMIZATION: Anthropic.Tool = {
+  name: 'submit_optimization',
+  description: 'Submit the completed campaign optimization analysis.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      recommendations: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            campaign: { type: 'string' },
+            action: { type: 'string', enum: ['scale', 'hold', 'pause', 'review'] },
+            reason: { type: 'string' },
+            priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+          },
+          required: ['campaign', 'action', 'reason', 'priority'],
+        },
+      },
+      budget_shifts: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { from: { type: 'string' }, to: { type: 'string' }, amount: { type: 'string' } },
+          required: ['from', 'to', 'amount'],
+        },
+      },
+      keyword_actions: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            keyword: { type: 'string' },
+            action: { type: 'string', enum: ['keep', 'pause', 'remove'] },
+            campaign: { type: 'string' },
+          },
+          required: ['keyword', 'action', 'campaign'],
+        },
+      },
+      landing_page_flags: { type: 'array', items: { type: 'string' } },
+      tracking_issues: { type: 'array', items: { type: 'string' } },
+      summary: { type: 'string' },
+    },
+    required: ['recommendations', 'summary'],
+  },
+}
+
 export async function runCampaignOptimizerAgent(
   client: Anthropic,
   campaigns: Campaign[],
   leads: Lead[],
 ): Promise<OptimizerOutput> {
-  const tools: Anthropic.Tool[] = [
-    {
-      name: 'get_campaign_metrics',
-      description: 'Returns performance metrics for all Google Ads and social campaigns',
-      input_schema: {
-        type: 'object' as const,
-        properties: {
-          include_social: { type: 'boolean', description: 'Include Facebook/Instagram/LinkedIn data' },
-        },
-        required: [],
-      },
-    },
-    {
-      name: 'get_lead_quality_report',
-      description: 'Returns lead qualification rates, conversion rates, and revenue by campaign',
-      input_schema: {
-        type: 'object' as const,
-        properties: {
-          campaign: { type: 'string', description: 'Filter by specific campaign name (optional)' },
-        },
-        required: [],
-      },
-    },
-    {
-      name: 'get_waste_analysis',
-      description: 'Identifies keywords, placements, or audiences spending money without conversions',
-      input_schema: {
-        type: 'object' as const,
-        properties: {
-          min_spend: { type: 'number', description: 'Minimum spend threshold to flag (default: 50)' },
-        },
-        required: [],
-      },
-    },
-  ]
+  const modelUsed = CLAUDE_SONNET
 
-  const messages: Anthropic.MessageParam[] = [
-    {
-      role: 'user',
-      content: `Analyze SSD Consulting's current campaign performance and provide optimization recommendations.
+  // The three tools are pure functions of (campaigns, leads) — compute up front
+  // and inject, so a single forced-tool call replaces the old serial loop +
+  // separate JSON-conversion call (which together blew past the 26s limit).
+  const metrics = handleToolCall('get_campaign_metrics', {}, campaigns, leads)
+  const quality = handleToolCall('get_lead_quality_report', {}, campaigns, leads)
+  const waste = handleToolCall('get_waste_analysis', { min_spend: 50 }, campaigns, leads)
 
-Current data summary:
+  const userPrompt = `Analyze SSD Consulting's campaign performance and submit recommendations via submit_optimization.
+
+SUMMARY:
 - Total campaigns: ${campaigns.length}
 - Total leads in CRM: ${leads.length}
 - Qualified leads: ${leads.filter(l => l.qualified === 'yes').length}
 - Total revenue tracked: $${leads.reduce((s, l) => s + (l.revenue || 0), 0).toLocaleString()}
 
-Please use the available tools to get detailed data, then provide structured recommendations.`,
-    },
-  ]
+CAMPAIGN METRICS:
+${JSON.stringify(metrics)}
 
-  let totalTokens = 0
-  const modelUsed = CLAUDE_SONNET
+LEAD QUALITY BY CAMPAIGN:
+${JSON.stringify(quality)}
 
-  // Agentic loop — runs until Claude stops calling tools (capped)
-  const MAX_ITERATIONS = 4
-  let iteration = 0
-  let lastText = ''
-  while (iteration < MAX_ITERATIONS) {
-    iteration++
-    const isLastIteration = iteration === MAX_ITERATIONS
-    const response = await client.messages.create({
-      model: modelUsed,
-      max_tokens: isLastIteration ? 4096 : 1024,
-      system: SYSTEM_PROMPT,
-      tools,
-      messages,
-    })
+WASTE ANALYSIS:
+${JSON.stringify(waste)}
 
-    totalTokens += (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
+Provide scaling/pausing/optimization recommendations, budget shifts, keyword actions, landing-page flags, and tracking issues.`
 
-    if (response.stop_reason === 'tool_use') {
-      const toolUseBlocks = response.content.filter(b => b.type === 'tool_use')
-      const toolResults: Anthropic.ToolResultBlockParam[] = []
-
-      for (const block of toolUseBlocks) {
-        if (block.type !== 'tool_use') continue
-        const result = handleToolCall(block.name, block.input as Record<string, unknown>, campaigns, leads)
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: block.id,
-          content: JSON.stringify(result),
-        })
-      }
-
-      messages.push({ role: 'assistant', content: response.content })
-      messages.push({ role: 'user', content: toolResults })
-    }
-    else {
-      // Model finished — extract final text
-      const textBlock = response.content.find(b => b.type === 'text')
-      lastText = textBlock && textBlock.type === 'text' ? textBlock.text : ''
-      break
-    }
-  }
-
-  // Ask for structured JSON output (also handles iteration-cap exit)
-  const structuredResponse = await client.messages.create({
+  const response = await client.messages.create({
     model: modelUsed,
-    max_tokens: 2048,
-    system: 'Return ONLY valid JSON, no markdown. Follow the exact schema provided.',
-    messages: [
-      {
-        role: 'user',
-        content: `Convert this analysis into the following JSON schema:
-{
-  "recommendations": [{ "campaign": string, "action": "scale"|"hold"|"pause"|"review", "reason": string, "priority": "high"|"medium"|"low" }],
-  "budget_shifts": [{ "from": string, "to": string, "amount": string }],
-  "keyword_actions": [{ "keyword": string, "action": "keep"|"pause"|"remove", "campaign": string }],
-  "landing_page_flags": [string],
-  "tracking_issues": [string],
-  "summary": string
-}
-
-Analysis to convert:
-${lastText || 'No analysis produced before reaching tool-call iteration cap.'}`,
-      },
-    ],
+    max_tokens: 2500,
+    system: SYSTEM_PROMPT,
+    tools: [SUBMIT_OPTIMIZATION],
+    tool_choice: { type: 'tool', name: 'submit_optimization' },
+    messages: [{ role: 'user', content: userPrompt }],
   })
 
-  totalTokens += (structuredResponse.usage?.input_tokens ?? 0) + (structuredResponse.usage?.output_tokens ?? 0)
+  const tokensUsed = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
+  const block = response.content.find(b => b.type === 'tool_use')
 
-  try {
-    const jsonText = structuredResponse.content[0]?.type === 'text'
-      ? structuredResponse.content[0].text
-      : '{}'
-    const cleaned = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    const parsed = JSON.parse(cleaned)
-    return { ...parsed, model_used: modelUsed, tokens_used: totalTokens } as OptimizerOutput
-  }
-  catch {
+  if (!block || block.type !== 'tool_use') {
     return {
       recommendations: [],
       budget_shifts: [],
       keyword_actions: [],
       landing_page_flags: [],
-      tracking_issues: iteration >= MAX_ITERATIONS
-        ? [`Agent reached max iterations (${MAX_ITERATIONS}) — review raw response`]
-        : ['Failed to parse structured output — review raw response'],
-      summary: lastText.slice(0, 500),
+      tracking_issues: ['Optimizer did not return a structured result — please retry'],
+      summary: '',
       model_used: modelUsed,
-      tokens_used: totalTokens,
+      tokens_used: tokensUsed,
     }
+  }
+
+  const out = block.input as Partial<OptimizerOutput>
+  return {
+    recommendations: out.recommendations ?? [],
+    budget_shifts: out.budget_shifts ?? [],
+    keyword_actions: out.keyword_actions ?? [],
+    landing_page_flags: out.landing_page_flags ?? [],
+    tracking_issues: out.tracking_issues ?? [],
+    summary: out.summary ?? '',
+    model_used: modelUsed,
+    tokens_used: tokensUsed,
   }
 }
 
