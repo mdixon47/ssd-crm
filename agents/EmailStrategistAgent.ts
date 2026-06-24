@@ -182,9 +182,28 @@ Keep each email body under ~90 words. Call plan_outreach with the complete plan.
     summary: string
   }
 
+  // Reconcile each draft to a real CRM lead so the UI can send it via Resend.
+  // Trust the canonical leads list, not the model: match on email (case-insensitive),
+  // falling back to a model-echoed lead_id only if it's a known id. Suggestions with
+  // no match keep lead_id undefined (UI shows them as review-only, not sendable).
+  const byEmail = new Map(
+    leads.filter(l => l.email).map(l => [l.email!.toLowerCase().trim(), l]),
+  )
+  const byId = new Map(leads.map(l => [l.id, l]))
+  const suggestions = (parsed.suggestions ?? []).slice(0, maxRecipients).map((s) => {
+    const matched = byEmail.get((s.lead_email ?? '').toLowerCase().trim())
+      ?? (s.lead_id ? byId.get(s.lead_id) : undefined)
+    return {
+      ...s,
+      lead_id: matched?.id,
+      lead_email: matched?.email ?? s.lead_email,
+      lead_org: matched?.org ?? s.lead_org,
+    }
+  })
+
   return {
     generated_at: new Date().toISOString(),
-    suggestions: (parsed.suggestions ?? []).slice(0, maxRecipients),
+    suggestions,
     segment_summary: parsed.segment_summary ?? [],
     skipped: parsed.skipped ?? [],
     summary: parsed.summary ?? '',

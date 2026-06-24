@@ -100,9 +100,38 @@
                 </div>
                 <div class="text-xs text-slate-500 mb-2">{{ s.reason }}</div>
                 <div class="text-sm font-medium text-slate-200">{{ s.subject }}</div>
-                <div v-if="expandedSuggestion === i" class="text-xs text-slate-400 whitespace-pre-wrap mt-2 leading-relaxed">{{ s.body }}</div>
+
+                <div v-if="expandedSuggestion === i" class="mt-2 space-y-2">
+                  <input
+                    v-model="s.subject"
+                    type="text"
+                    placeholder="Subject"
+                    class="w-full rounded-lg px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none"
+                    style="background:#070c18;border:1px solid rgba(148,163,184,0.15)"
+                  >
+                  <textarea
+                    v-model="s.body"
+                    rows="8"
+                    placeholder="Email body"
+                    class="w-full rounded-lg px-3 py-2 text-xs text-slate-300 placeholder-slate-600 focus:outline-none leading-relaxed"
+                    style="background:#070c18;border:1px solid rgba(148,163,184,0.15)"
+                  />
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <button
+                      class="text-xs font-semibold py-1.5 px-3 rounded-md transition-colors disabled:opacity-50 text-emerald-300"
+                      style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3)"
+                      :disabled="!s.lead_id || !s.subject || !s.body || sendState[i] === 'sending' || sendState[i] === 'sent'"
+                      @click="sendDraft(s, i)"
+                    >
+                      {{ sendState[i] === 'sending' ? '⏳ Sending…' : sendState[i] === 'sent' ? '✓ Sent' : `Send to ${s.lead_email}` }}
+                    </button>
+                    <span v-if="!s.lead_id" class="text-xs text-amber-400">No matched CRM lead — open the lead to send manually.</span>
+                    <span v-if="sendState[i] === 'error'" class="text-xs text-red-400">{{ sendErrors[i] }}</span>
+                  </div>
+                </div>
+
                 <button class="text-xs text-cyan-400 hover:text-cyan-300 mt-1 transition-colors" @click="expandedSuggestion = expandedSuggestion === i ? null : i">
-                  {{ expandedSuggestion === i ? '↑ Hide draft' : '↓ Show draft' }}
+                  {{ expandedSuggestion === i ? '↑ Hide draft' : '↓ Edit & send' }}
                 </button>
               </div>
               <button
@@ -124,7 +153,7 @@
           </ul>
         </details>
 
-        <p class="text-xs text-slate-600 italic">Drafts are suggestions — review and send via each lead's modal.</p>
+        <p class="text-xs text-slate-600 italic">Drafts are suggestions — edit inline and send via Resend, or open a lead to send manually.</p>
       </div>
     </div>
 
@@ -223,7 +252,7 @@
 import { useLeadsStore } from '~/stores/leads'
 import { useAI } from '~/composables/useAI'
 import LeadModal from '~/components/leads/LeadModal.vue'
-import type { Lead, EmailStrategyOutput } from '~/types'
+import type { Lead, EmailStrategyOutput, EmailOutreachSuggestion } from '~/types'
 
 const leadsStore = useLeadsStore()
 const view = ref<'pipeline' | 'list'>('pipeline')
@@ -236,11 +265,15 @@ const strategyLoading = ref(false)
 const strategyError = ref<string | null>(null)
 const strategyFocus = ref('')
 const expandedSuggestion = ref<number | null>(null)
+const sendState = ref<Record<number, 'sending' | 'sent' | 'error'>>({})
+const sendErrors = ref<Record<number, string>>({})
 
 async function loadStrategy() {
   strategyLoading.value = true
   strategyError.value = null
   expandedSuggestion.value = null
+  sendState.value = {}
+  sendErrors.value = {}
   try {
     const result = await runEmailStrategy({ focus: strategyFocus.value || undefined })
     if (result) strategy.value = result
@@ -248,6 +281,23 @@ async function loadStrategy() {
   }
   finally {
     strategyLoading.value = false
+  }
+}
+
+async function sendDraft(s: EmailOutreachSuggestion, i: number) {
+  if (!s.lead_id) return
+  sendState.value[i] = 'sending'
+  try {
+    await $fetch('/api/email/send', {
+      method: 'POST',
+      body: { leadId: s.lead_id, to: s.lead_email, subject: s.subject, body: s.body },
+    })
+    sendState.value[i] = 'sent'
+  }
+  catch (e) {
+    sendState.value[i] = 'error'
+    sendErrors.value[i] = (e as { data?: { message?: string } })?.data?.message
+      ?? (e instanceof Error ? e.message : 'Send failed')
   }
 }
 
