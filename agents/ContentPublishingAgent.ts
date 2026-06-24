@@ -15,7 +15,7 @@
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { ContentPublishResult, ContentPlatform, ContentOffer, ContentTone, GeneratedContent, ContentType } from '~/types'
-import { CLAUDE_SONNET } from '~/lib/models'
+import { CLAUDE_HAIKU } from '~/lib/models'
 import type { createSupabaseClient } from '~/server/utils/supabase'
 
 type SupabaseClient = ReturnType<typeof createSupabaseClient>
@@ -126,7 +126,7 @@ ${contextSummary}
 Write the piece and submit it via submit_content.`
 
   const response = await anthropic.messages.create({
-    model: CLAUDE_SONNET,
+    model: CLAUDE_HAIKU,
     max_tokens: 1500,
     system: SYSTEM_PROMPT,
     tools: [SUBMIT_TOOL],
@@ -206,7 +206,7 @@ export async function runContentPublishingAgent(
   return {
     items: pieces,
     strategy_notes: strategyNotes,
-    model_used: CLAUDE_SONNET,
+    model_used: CLAUDE_HAIKU,
     savedIds,
   }
 }

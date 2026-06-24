@@ -15,7 +15,7 @@
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { Lead, EmailStrategyOutput } from '~/types'
-import { CLAUDE_SONNET } from '~/lib/models'
+import { CLAUDE_HAIKU } from '~/lib/models'
 
 const SYSTEM_PROMPT = `You are SSD Consulting's outreach strategist. Your job is to plan the next wave of outreach emails to leads in the CRM.
 
@@ -42,9 +42,11 @@ export async function runEmailStrategistAgent(
   leads: Lead[],
   options?: { maxRecipients?: number, focus?: string },
 ): Promise<EmailStrategyOutput> {
-  const maxRecipients = options?.maxRecipients ?? 8
+  // Capped at 5 (was 8) so the batch of email drafts completes within Netlify's
+  // 26s wall — each draft is ~150 tokens, and N drafts dominate generation time.
+  const maxRecipients = options?.maxRecipients ?? 5
   const focus = options?.focus
-  const modelUsed = CLAUDE_SONNET
+  const modelUsed = CLAUDE_HAIKU
 
   // ── Pre-compute filtered views in JS (replaces tool-use loop) ──
   const now = Date.now()
@@ -132,7 +134,7 @@ export async function runEmailStrategistAgent(
 
   const response = await client.messages.create({
     model: modelUsed,
-    max_tokens: 4096,
+    max_tokens: 1800,
     system: SYSTEM_PROMPT,
     tools: [outputTool],
     tool_choice: { type: 'any' },
@@ -153,7 +155,7 @@ ${JSON.stringify(mediumPriority)}
 HIGH VALUE CANDIDATES (qualified or consulting interest):
 ${JSON.stringify(highValue)}
 
-Call plan_outreach with the complete plan.`,
+Keep each email body under ~90 words. Call plan_outreach with the complete plan.`,
       },
     ],
   })

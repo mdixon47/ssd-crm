@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { getAnthropicClient } from '~/server/utils/anthropic'
 import { createSupabaseClient } from '~/server/utils/supabase'
 import { GOOGLE_CAMPAIGNS } from '~/lib/mockData'
-import { CLAUDE_SONNET } from '~/lib/models'
+import { CLAUDE_HAIKU } from '~/lib/models'
 
 const schema = z.object({
   message: z.string().trim().min(1).max(4000),
@@ -60,7 +60,7 @@ Recent leads: ${JSON.stringify(recentLeads ?? [])}
   const historyMessages = (history ?? []).slice(-8)
 
   const response = await client.messages.create({
-    model: CLAUDE_SONNET,
+    model: CLAUDE_HAIKU,
     max_tokens: 1024,
     system: SYSTEM_PROMPT + '\n\nCurrent CRM snapshot:\n' + contextBlock,
     messages: [

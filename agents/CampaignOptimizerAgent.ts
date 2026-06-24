@@ -7,7 +7,7 @@
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { Campaign, Lead } from '~/types'
-import { CLAUDE_SONNET } from '~/lib/models'
+import { CLAUDE_HAIKU } from '~/lib/models'
 
 export interface CampaignRecommendation {
   campaign: string
@@ -94,7 +94,7 @@ export async function runCampaignOptimizerAgent(
   campaigns: Campaign[],
   leads: Lead[],
 ): Promise<OptimizerOutput> {
-  const modelUsed = CLAUDE_SONNET
+  const modelUsed = CLAUDE_HAIKU
 
   // The three tools are pure functions of (campaigns, leads) — compute up front
   // and inject, so a single forced-tool call replaces the old serial loop +
@@ -124,7 +124,7 @@ Provide scaling/pausing/optimization recommendations, budget shifts, keyword act
 
   const response = await client.messages.create({
     model: modelUsed,
-    max_tokens: 2500,
+    max_tokens: 1500,
     system: SYSTEM_PROMPT,
     tools: [SUBMIT_OPTIMIZATION],
     tool_choice: { type: 'tool', name: 'submit_optimization' },

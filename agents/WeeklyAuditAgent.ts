@@ -11,7 +11,7 @@
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { AuditReport, Campaign, Lead, SearchTerm, NegativeKeyword, GAOverview } from '~/types'
-import { CLAUDE_SONNET } from '~/lib/models'
+import { CLAUDE_HAIKU } from '~/lib/models'
 
 const SYSTEM_PROMPT = `You are SSD Consulting's senior paid acquisition strategist. Your job is to run a comprehensive weekly audit of all paid channels.
 
@@ -76,7 +76,7 @@ export async function runWeeklyAuditAgent(
   },
 ): Promise<AuditReport> {
   const { campaigns, leads, searchTerms, negativeKeywords, webAnalytics, weekDate } = context
-  const modelUsed = CLAUDE_SONNET
+  const modelUsed = CLAUDE_HAIKU
 
   // Every audit "tool" is a pure function of the injected context — compute them
   // all up front and inject, so ONE forced-tool call replaces the old 5-iteration
@@ -100,11 +100,11 @@ Leads this period: ${leads.filter(l => new Date(l.lead_date) > new Date(Date.now
 DATA (already gathered for you across all channels):
 ${JSON.stringify(data)}
 
-Analyze all of it and produce the structured audit report — be specific and name campaigns, keywords, and landing pages.`
+Analyze all of it and produce the structured audit report — be specific and name campaigns, keywords, and landing pages. Keep it concise: short phrases over paragraphs, highest-impact items only.`
 
   const response = await client.messages.create({
     model: modelUsed,
-    max_tokens: 3000,
+    max_tokens: 1500,
     system: SYSTEM_PROMPT,
     tools: [SUBMIT_AUDIT],
     tool_choice: { type: 'tool', name: 'submit_audit' },

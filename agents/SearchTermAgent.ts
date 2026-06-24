@@ -7,7 +7,7 @@
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
 import type { SearchTerm, SearchTermLabel } from '~/types'
-import { CLAUDE_SONNET } from '~/lib/models'
+import { CLAUDE_HAIKU } from '~/lib/models'
 
 export interface LabeledTerm {
   id: string
@@ -56,7 +56,7 @@ export async function runSearchTermAgent(
   client: Anthropic,
   terms: SearchTerm[],
 ): Promise<SearchTermOutput> {
-  const modelUsed = CLAUDE_SONNET
+  const modelUsed = CLAUDE_HAIKU
 
   // Split into batches of 20 to stay within context limits, then label every
   // batch CONCURRENTLY. Serial batches accumulated latency and 504'd on large
@@ -75,7 +75,7 @@ export async function runSearchTermAgent(
     try {
       const response = await client.messages.create({
         model: modelUsed,
-        max_tokens: 2048,
+        max_tokens: 1500,
         system: SYSTEM_PROMPT + '\n\nReturn ONLY valid JSON array. No markdown.',
         messages: [
           {

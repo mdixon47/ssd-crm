@@ -10,7 +10,7 @@
 //     Email drafts are returned for human review — never auto-sent.
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
-import { CLAUDE_SONNET } from '~/lib/models'
+import { CLAUDE_HAIKU } from '~/lib/models'
 import { runEmailAgent } from '~/agents/EmailAgent'
 import { runContentPublishingAgent } from '~/agents/ContentPublishingAgent'
 import { GOOGLE_CAMPAIGNS } from '~/lib/mockData'
@@ -441,8 +441,8 @@ export async function runCRMOperationsAgent(
     iter++
 
     const response = await anthropic.messages.create({
-      model: CLAUDE_SONNET,
-      max_tokens: 2048,
+      model: CLAUDE_HAIKU,
+      max_tokens: 1500,
       system: SYSTEM_PROMPT,
       tools: TOOLS,
       messages,
