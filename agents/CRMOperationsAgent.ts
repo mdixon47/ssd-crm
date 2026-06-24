@@ -430,8 +430,14 @@ export async function runCRMOperationsAgent(
     { role: 'user', content: message },
   ]
 
+  // Stop orchestrating before Netlify's 26s wall so we return partial progress
+  // (a clean message + any actions already taken) instead of a 504.
+  const startedAt = Date.now()
+  const TIME_BUDGET_MS = 20_000
+
   let iter = 0
   while (iter < MAX_ITER) {
+    if (Date.now() - startedAt > TIME_BUDGET_MS) break
     iter++
 
     const response = await anthropic.messages.create({
@@ -475,7 +481,9 @@ export async function runCRMOperationsAgent(
   }
 
   return {
-    reply: 'I was unable to complete that request within the iteration limit. Please try a more specific command.',
+    reply: actions.length
+      ? `I ran out of time before fully finishing, but I completed ${actions.length} step(s) — see the actions above. Please re-run to continue, or try a more specific command.`
+      : 'I was unable to complete that request within the time/iteration limit. Please try a more specific command.',
     actions,
   }
 }

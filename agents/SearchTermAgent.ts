@@ -56,55 +56,64 @@ export async function runSearchTermAgent(
   client: Anthropic,
   terms: SearchTerm[],
 ): Promise<SearchTermOutput> {
-  let totalTokens = 0
   const modelUsed = CLAUDE_SONNET
 
-  // Process in batches of 20 to stay within context limits
+  // Split into batches of 20 to stay within context limits, then label every
+  // batch CONCURRENTLY. Serial batches accumulated latency and 504'd on large
+  // term lists; wall-clock is now ≈ the slowest single batch, not their sum.
   const batchSize = 20
-  const allLabeled: LabeledTerm[] = []
-
+  const batches: SearchTerm[][] = []
   for (let i = 0; i < terms.length; i += batchSize) {
-    const batch = terms.slice(i, i + batchSize)
+    batches.push(terms.slice(i, i + batchSize))
+  }
 
+  const labelBatch = async (batch: SearchTerm[]): Promise<{ labeled: LabeledTerm[], tokens: number }> => {
     const termList = batch.map(t =>
       `ID: ${t.id} | Term: "${t.term}" | Campaign: ${t.campaign} | Spend: $${t.cost} | Clicks: ${t.clicks} | Conv: ${t.conversions}`,
     ).join('\n')
 
-    const response = await client.messages.create({
-      model: modelUsed,
-      max_tokens: 2048,
-      system: SYSTEM_PROMPT + '\n\nReturn ONLY valid JSON array. No markdown.',
-      messages: [
-        {
-          role: 'user',
-          content: `Label each of these search terms. Return a JSON array matching:
+    try {
+      const response = await client.messages.create({
+        model: modelUsed,
+        max_tokens: 2048,
+        system: SYSTEM_PROMPT + '\n\nReturn ONLY valid JSON array. No markdown.',
+        messages: [
+          {
+            role: 'user',
+            content: `Label each of these search terms. Return a JSON array matching:
 [{ "id": string, "term": string, "suggested_label": "keep"|"watch"|"negative"|"build_page"|"new_campaign", "confidence": "high"|"medium"|"low", "reason": string }]
 
 Search terms to label:
 ${termList}`,
-        },
-      ],
-    })
+          },
+        ],
+      })
 
-    totalTokens += (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
-
-    try {
+      const tokens = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
       const raw = response.content[0]?.type === 'text' ? response.content[0].text : '[]'
       const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
       const parsed: LabeledTerm[] = JSON.parse(cleaned)
-      allLabeled.push(...parsed)
+      return { labeled: parsed, tokens }
     }
     catch {
-      // Fallback: mark all in batch as watch
-      batch.forEach(t => allLabeled.push({
-        id: t.id ?? t.term,
-        term: t.term,
-        suggested_label: 'watch',
-        confidence: 'low',
-        reason: 'Could not parse AI response — review manually',
-      }))
+      // Fallback: mark all in batch as watch (covers both a failed/timed-out
+      // call and an unparseable response).
+      return {
+        labeled: batch.map(t => ({
+          id: t.id ?? t.term,
+          term: t.term,
+          suggested_label: 'watch' as const,
+          confidence: 'low' as const,
+          reason: 'Could not parse AI response — review manually',
+        })),
+        tokens: 0,
+      }
     }
   }
+
+  const results = await Promise.all(batches.map(labelBatch))
+  const allLabeled: LabeledTerm[] = results.flatMap(r => r.labeled)
+  const totalTokens = results.reduce((sum, r) => sum + r.tokens, 0)
 
   // Build summary
   const summary = { keep: 0, watch: 0, negative: 0, build_page: 0, new_campaign: 0 }

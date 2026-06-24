@@ -13,6 +13,11 @@ export function getAnthropicClient(): Anthropic {
     )
   }
 
-  _client = new Anthropic({ apiKey })
+  // Bound every agent call so a slow/overloaded upstream fails fast instead of
+  // blowing past Netlify's 26s function limit and surfacing as an opaque 504.
+  // A normal Sonnet tool call completes in ~8-15s, well under 20s. maxRetries is
+  // kept low because, on a 26s serverless wall, there's only budget for one real
+  // attempt (a transient 429/529 returns fast, so a single retry still fits).
+  _client = new Anthropic({ apiKey, timeout: 20_000, maxRetries: 1 })
   return _client
 }
