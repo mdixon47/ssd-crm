@@ -15,7 +15,7 @@ Pulls GA4 traffic/acquisition/conversion data into the CRM, slotting into the ex
 - **Shared data layer** `server/utils/googleAnalytics.ts` — reads the live GA4 Data API (`@google-analytics/data`) when `GA4_PROPERTY_ID` + service-account creds are set, else scaled mock data. Used by both the MCP server **and** the REST endpoint (DRY).
 - **Surfaces:** `GET /api/analytics?range=…`, new `pages/analytics/index.vue` dashboard (+ nav link), a GA channel panel merged into the Campaigns view, and a `get_website_analytics` tool fed to `WeeklyAuditAgent`.
 - Types, mock dataset (`lib/mockData.ts`), `useMCP` accessors, and unit tests added.
-- **Live-verified** against property `367191792` (real sessions/channels/landing pages returned). Required setup: enabled the *Google Analytics Data API* in GCP project `ssdoauthproject` (via gcloud), added the service-account email as a GA4 **property Viewer**, and set `GA4_*` env vars locally + on **Netlify** (`GA4_PRIVATE_KEY` + `GA4_CLIENT_EMAIL` marked secret). Note: live `conversions: 0` until key events are configured — see issues.md #25.
+- **Live-verified** against the configured GA4 property (real sessions/channels/landing pages returned). Required setup: enabled the *Google Analytics Data API* in GCP project `ssdoauthproject` (via gcloud), added the service-account email as a GA4 **property Viewer**, and set `GA4_*` env vars locally + on **Netlify** (`GA4_PRIVATE_KEY` + `GA4_CLIENT_EMAIL` marked secret). Note: live `conversions: 0` until key events are configured — see issues.md #25.
 
 ### AI agent 504 timeouts eliminated (`fix a698a48`, `ff8f87c`, + agent sweep)
 

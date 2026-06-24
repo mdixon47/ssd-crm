@@ -16,6 +16,11 @@
   TMPDIR = "/tmp"
   # Raise Node heap limit for large Nuxt/Vite builds (default ~1.5 GB hits OOM on Netlify).
   NODE_OPTIONS = "--max-old-space-size=4096"
+  # GA4_PROPERTY_ID is a non-sensitive numeric identifier (not a credential), but
+  # Netlify secrets scanning fails the build if its value appears in the repo or
+  # build output (e.g. docs). Omit just this key; GA4_PRIVATE_KEY /
+  # GA4_CLIENT_EMAIL stay scanned. See docs/issues.md #27.
+  SECRETS_SCAN_OMIT_KEYS = "GA4_PROPERTY_ID"
 
 # Preview deploys (branch + PR) get the same build pipeline as production.
 [context.production.environment]

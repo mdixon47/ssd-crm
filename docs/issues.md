@@ -102,6 +102,11 @@ The 2026-06-22 code-review fixes shipped and are CI-green (see [`update.md`](./u
 - `marketing/video/package.json` has no `engines` field pinning Node (the root app does).
 - `theme.ts` `fontFamilyHeading`/`fontFamilyBody` are identical strings — collapse to one token if heading/body never diverge.
 
+### 27. Netlify secrets scanning fails the build if an env-var value appears in the repo
+Root cause of the 2026-06-24 production deploy failures (`3dbe3f0`→`f93bc35` all `state=error`, "Build script returned non-zero exit code: 2", while GitHub CI + local builds passed). Netlify scans the repo and build output for the **values of all env vars** and fails the build on a match. Commit `3dbe3f0` added the literal `GA4_PROPERTY_ID` value to `docs/update.md`, which tripped the scanner. CI/local don't run secrets scanning, so they stayed green — that split (CI green, Netlify red) is the signature.
+
+**Fix:** redacted the literal from docs + `SECRETS_SCAN_OMIT_KEYS = "GA4_PROPERTY_ID"` in `netlify.toml` (it's a non-sensitive identifier; `GA4_PRIVATE_KEY` / `GA4_CLIENT_EMAIL` stay scanned). **Rule going forward:** never paste real env-var values (IDs, URLs, keys) into committed files — use placeholders. If a non-sensitive value must appear, add its key to `SECRETS_SCAN_OMIT_KEYS`.
+
 ### 26. `crm-agent` chat orchestrator can still approach the 26s limit
 The serial-loop 504s in the analysis agents were fixed by collapsing to a single forced-tool call (see update.md 2026-06-23). `CRMOperationsAgent` (`/api/ai/crm-agent`) is a genuine interactive chat orchestrator with dynamic tool routing + DB writes, so it can't be collapsed; it's bounded to `MAX_ITER=6` and its delegated sub-agents (content/social) are now single-call. A very complex multi-step request (many tool turns, or delegating heavy content generation mid-chat) could still approach the limit. The real fix is **streaming the response** (Netlify streaming / Nitro) or moving long operations to a **background function** — deferred until it's actually hit.
 
