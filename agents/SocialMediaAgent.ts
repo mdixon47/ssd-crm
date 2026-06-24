@@ -4,6 +4,13 @@
 // audience / budget / creative / format / tracking changes, and
 // generates fresh post ideas tailored to SSD Consulting's offers.
 //
+// Architecture: the four data "tools" are pure functions of the
+// platform object, so they're computed server-side up front and
+// injected into the prompt. A SINGLE forced-tool Sonnet call then
+// returns the structured strategy directly — no agentic loop and
+// no separate JSON-conversion call. This keeps the request well
+// under the 26s serverless function limit (previously 504'd).
+//
 // ⚠️  READ ONLY. Recommendations require human approval before
 // any spend, audience, or campaign change is implemented.
 // ============================================================
@@ -34,7 +41,51 @@ CONTENT IDEA RULES:
 - Each idea has a clear audience and CTA tied to one offering.
 - Avoid generic "tips" — be specific to grant writing, grants management, or behavioral health.
 
-Recommendations must reference the named campaign or post when applicable. Never recommend automatic changes — flag for human approval. Return ONLY valid JSON. No markdown.`
+Recommendations must reference the named campaign or post when applicable. Never recommend automatic changes — flag for human approval. Keep rationales concise. Submit your full analysis via the submit_strategy tool.`
+
+const SUBMIT_STRATEGY: Anthropic.Tool = {
+  name: 'submit_strategy',
+  description: 'Submit the completed platform strategy.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      health: { type: 'string', enum: ['strong', 'moderate', 'needs_attention'] },
+      recommendations: {
+        type: 'array',
+        description: 'Up to 6, highest priority first',
+        items: {
+          type: 'object',
+          properties: {
+            area: { type: 'string', enum: ['audience', 'budget', 'creative', 'format', 'tracking'] },
+            action: { type: 'string' },
+            priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+            rationale: { type: 'string' },
+          },
+          required: ['area', 'action', 'priority'],
+        },
+      },
+      post_ideas: {
+        type: 'array',
+        description: 'Up to 5 platform-tailored ideas',
+        items: {
+          type: 'object',
+          properties: {
+            title: { type: 'string' },
+            format: { type: 'string' },
+            hook: { type: 'string' },
+            audience: { type: 'string' },
+            cta: { type: 'string' },
+          },
+          required: ['title', 'format', 'hook'],
+        },
+      },
+      scale_candidates: { type: 'array', items: { type: 'string' }, description: 'Campaign names to scale' },
+      pause_candidates: { type: 'array', items: { type: 'string' }, description: 'Campaign names to pause/review' },
+      summary: { type: 'string' },
+    },
+    required: ['health', 'recommendations', 'post_ideas', 'summary'],
+  },
+}
 
 export async function runSocialMediaAgent(
   client: Anthropic,
@@ -42,208 +93,122 @@ export async function runSocialMediaAgent(
   platform: SocialPlatformData,
 ): Promise<SocialStrategyOutput> {
   const modelUsed = CLAUDE_SONNET
-  let totalTokens = 0
+  const name = PLATFORM_NAMES[platformKey]
 
-  const tools: Anthropic.Tool[] = [
-    {
-      name: 'get_platform_metrics',
-      description: 'Returns aggregate spend, leads, revenue, ROAS for the active platform',
-      input_schema: { type: 'object' as const, properties: {}, required: [] },
-    },
-    {
-      name: 'get_campaign_breakdown',
-      description: 'Returns per-campaign performance with ROAS, CPL, audience, ad format, and a recommended action',
-      input_schema: { type: 'object' as const, properties: {}, required: [] },
-    },
-    {
-      name: 'get_post_engagement',
-      description: 'Returns top + bottom performing posts/content by leads-per-reach',
-      input_schema: { type: 'object' as const, properties: {}, required: [] },
-    },
-    {
-      name: 'get_audience_format_inventory',
-      description: 'Returns the current audience segments and ad formats configured for the platform',
-      input_schema: { type: 'object' as const, properties: {}, required: [] },
-    },
-  ]
+  // Compute every "tool" result up front — they're pure functions of `platform`.
+  const metrics = computeMetrics(platform)
+  const breakdown = computeCampaignBreakdown(platform)
+  const engagement = computePostEngagement(platform)
+  const inventory = { audiences: platform.audiences, ad_formats: platform.adFormats }
 
-  const totalSpend = platform.campaigns.reduce((s, c) => s + c.spend, 0)
-  const totalRevenue = platform.campaigns.reduce((s, c) => s + c.revenue, 0)
-  const totalLeads = platform.campaigns.reduce((s, c) => s + c.leads, 0)
+  const userPrompt = `Analyze SSD Consulting's ${name} performance, then submit the strategy via submit_strategy.
 
-  const messages: Anthropic.MessageParam[] = [
-    {
-      role: 'user',
-      content: `Analyze SSD Consulting's ${PLATFORM_NAMES[platformKey]} performance.
-Active campaigns: ${platform.campaigns.length}
-Total spend: $${totalSpend.toLocaleString()}
-Total leads: ${totalLeads}
-Total revenue: $${totalRevenue.toLocaleString()}
-Tagline: ${platform.tagline}
+PLATFORM: ${name}
+TAGLINE: ${platform.tagline}
 
-Use the tools to gather data, then return:
-- An overall health rating
-- Up to 6 prioritized recommendations
-- Up to 5 fresh post ideas tailored to this platform
-- Lists of campaigns to scale and to pause/review`,
-    },
-  ]
+AGGREGATE METRICS:
+${JSON.stringify(metrics)}
 
-  let rawAnalysis = ''
-  const MAX_ITERATIONS = 4
-  let iteration = 0
-  while (iteration < MAX_ITERATIONS) {
-    iteration++
-    const isLastIteration = iteration === MAX_ITERATIONS
-    const response = await client.messages.create({
-      model: modelUsed,
-      max_tokens: isLastIteration ? 4096 : 1024,
-      system: SYSTEM_PROMPT,
-      tools,
-      messages,
-    })
-    totalTokens += (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
+CAMPAIGN BREAKDOWN:
+${JSON.stringify(breakdown)}
 
-    if (response.stop_reason === 'tool_use') {
-      const toolUseBlocks = response.content.filter(b => b.type === 'tool_use')
-      const toolResults: Anthropic.ToolResultBlockParam[] = []
-      for (const block of toolUseBlocks) {
-        if (block.type !== 'tool_use') continue
-        const result = handleSocialTool(block.name, platform)
-        toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(result) })
-      }
-      messages.push({ role: 'assistant', content: response.content })
-      messages.push({ role: 'user', content: toolResults })
-    }
-    else {
-      const textBlock = response.content.find(b => b.type === 'text')
-      rawAnalysis = textBlock && textBlock.type === 'text' ? textBlock.text : ''
-      break
-    }
-  }
+POST ENGAGEMENT (top / bottom by leads-per-reach):
+${JSON.stringify(engagement)}
 
-  // Structured JSON conversion
-  const structuredResponse = await client.messages.create({
-    model: CLAUDE_SONNET,
-    max_tokens: 3000,
-    system: 'Return ONLY valid JSON. No markdown. Follow the schema exactly.',
-    messages: [
-      {
-        role: 'user',
-        content: `Convert this ${PLATFORM_NAMES[platformKey]} analysis into JSON matching exactly:
-{
-  "health": "strong"|"moderate"|"needs_attention",
-  "recommendations": [{
-    "area": "audience"|"budget"|"creative"|"format"|"tracking",
-    "action": string,
-    "priority": "high"|"medium"|"low",
-    "rationale": string
-  }],
-  "post_ideas": [{
-    "title": string,
-    "format": string,
-    "hook": string,
-    "audience": string,
-    "cta": string
-  }],
-  "scale_candidates": [string],
-  "pause_candidates": [string],
-  "summary": string
-}
+AUDIENCES & AD FORMATS:
+${JSON.stringify(inventory)}
 
-Analysis to convert:
-${rawAnalysis}`,
-      },
-    ],
+Produce: an overall health rating, up to 6 prioritized recommendations, up to 5 fresh post ideas tailored to ${name}, and lists of campaigns to scale and to pause/review. Reference campaigns/posts by name.`
+
+  const response = await client.messages.create({
+    model: modelUsed,
+    max_tokens: 2500,
+    system: SYSTEM_PROMPT,
+    tools: [SUBMIT_STRATEGY],
+    tool_choice: { type: 'tool', name: 'submit_strategy' },
+    messages: [{ role: 'user', content: userPrompt }],
   })
-  totalTokens += (structuredResponse.usage?.input_tokens ?? 0) + (structuredResponse.usage?.output_tokens ?? 0)
 
-  try {
-    const raw = structuredResponse.content[0]?.type === 'text' ? structuredResponse.content[0].text : '{}'
-    const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    const parsed = JSON.parse(cleaned)
-    return {
-      generated_at: new Date().toISOString(),
-      platform: platformKey,
-      health: parsed.health ?? 'moderate',
-      recommendations: parsed.recommendations ?? [],
-      post_ideas: parsed.post_ideas ?? [],
-      scale_candidates: parsed.scale_candidates ?? [],
-      pause_candidates: parsed.pause_candidates ?? [],
-      summary: parsed.summary ?? rawAnalysis.slice(0, 500),
-      model_used: modelUsed,
-      tokens_used: totalTokens,
-    }
+  const tokensUsed = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
+  const block = response.content.find(b => b.type === 'tool_use')
+
+  const base = {
+    generated_at: new Date().toISOString(),
+    platform: platformKey,
+    model_used: modelUsed,
+    tokens_used: tokensUsed,
   }
-  catch {
+
+  if (!block || block.type !== 'tool_use') {
     return {
-      generated_at: new Date().toISOString(),
-      platform: platformKey,
+      ...base,
       health: 'needs_attention',
       recommendations: [],
       post_ideas: [],
       scale_candidates: [],
       pause_candidates: [],
-      summary: iteration >= MAX_ITERATIONS
-        ? `Agent reached max iterations (${MAX_ITERATIONS}) — review raw output`
-        : rawAnalysis.slice(0, 500),
-      model_used: modelUsed,
-      tokens_used: totalTokens,
+      summary: 'The strategist did not return a structured result — please retry.',
     }
+  }
+
+  const out = block.input as Partial<SocialStrategyOutput>
+  return {
+    ...base,
+    health: out.health ?? 'moderate',
+    recommendations: out.recommendations ?? [],
+    post_ideas: out.post_ideas ?? [],
+    scale_candidates: out.scale_candidates ?? [],
+    pause_candidates: out.pause_candidates ?? [],
+    summary: out.summary ?? '',
   }
 }
 
-// ── Tool implementations ──────────────────────────────────
-function handleSocialTool(name: string, platform: SocialPlatformData): unknown {
-  switch (name) {
-    case 'get_platform_metrics': {
-      const spend = platform.campaigns.reduce((s, c) => s + c.spend, 0)
-      const revenue = platform.campaigns.reduce((s, c) => s + c.revenue, 0)
-      const leads = platform.campaigns.reduce((s, c) => s + c.leads, 0)
-      const reach = platform.campaigns.reduce((s, c) => s + c.reach, 0)
-      return {
-        spend,
-        revenue,
-        leads,
-        reach,
-        roas: spend > 0 ? Number.parseFloat((revenue / spend).toFixed(2)) : 0,
-        avg_cpl: leads > 0 ? Number.parseFloat((spend / leads).toFixed(2)) : 0,
-      }
+// ── Data computations (pure functions of the platform object) ──
+function computeMetrics(platform: SocialPlatformData) {
+  const spend = platform.campaigns.reduce((s, c) => s + c.spend, 0)
+  const revenue = platform.campaigns.reduce((s, c) => s + c.revenue, 0)
+  const leads = platform.campaigns.reduce((s, c) => s + c.leads, 0)
+  const reach = platform.campaigns.reduce((s, c) => s + c.reach, 0)
+  return {
+    spend,
+    revenue,
+    leads,
+    reach,
+    roas: spend > 0 ? Number.parseFloat((revenue / spend).toFixed(2)) : 0,
+    avg_cpl: leads > 0 ? Number.parseFloat((spend / leads).toFixed(2)) : 0,
+  }
+}
+
+function computeCampaignBreakdown(platform: SocialPlatformData) {
+  return platform.campaigns.map((c) => {
+    const roas = c.spend > 0 ? c.revenue / c.spend : 0
+    return {
+      name: c.name,
+      objective: c.objective,
+      audience: c.audience,
+      ad_format: c.adFormat,
+      spend: c.spend,
+      leads: c.leads,
+      revenue: c.revenue,
+      cpl: c.cpl,
+      roas: Number.parseFloat(roas.toFixed(2)),
+      status: c.status,
+      recommended_action: roas >= 3 ? 'scale' : roas >= 1.5 ? 'hold' : 'review',
+      notes: c.notes,
     }
-    case 'get_campaign_breakdown':
-      return platform.campaigns.map((c) => {
-        const roas = c.spend > 0 ? c.revenue / c.spend : 0
-        return {
-          name: c.name,
-          objective: c.objective,
-          audience: c.audience,
-          ad_format: c.adFormat,
-          spend: c.spend,
-          leads: c.leads,
-          revenue: c.revenue,
-          cpl: c.cpl,
-          roas: Number.parseFloat(roas.toFixed(2)),
-          status: c.status,
-          recommended_action: roas >= 3 ? 'scale' : roas >= 1.5 ? 'hold' : 'review',
-          notes: c.notes,
-        }
-      })
-    case 'get_post_engagement': {
-      const ranked = [...platform.posts]
-        .map((p) => {
-          const reach = p.reach ?? 0
-          const leads = p.leads ?? 0
-          return { ...p, reach, leads, leads_per_reach: reach > 0 ? leads / reach : 0 }
-        })
-        .sort((a, b) => b.leads_per_reach - a.leads_per_reach)
-      return {
-        top: ranked.slice(0, 3).map(p => ({ title: p.title, format: p.format, reach: p.reach, leads: p.leads })),
-        bottom: ranked.slice(-3).map(p => ({ title: p.title, format: p.format, reach: p.reach, leads: p.leads })),
-      }
-    }
-    case 'get_audience_format_inventory':
-      return { audiences: platform.audiences, ad_formats: platform.adFormats }
-    default:
-      return { error: `Unknown tool: ${name}` }
+  })
+}
+
+function computePostEngagement(platform: SocialPlatformData) {
+  const ranked = [...platform.posts]
+    .map((p) => {
+      const reach = p.reach ?? 0
+      const leads = p.leads ?? 0
+      return { ...p, reach, leads, leads_per_reach: reach > 0 ? leads / reach : 0 }
+    })
+    .sort((a, b) => b.leads_per_reach - a.leads_per_reach)
+  return {
+    top: ranked.slice(0, 3).map(p => ({ title: p.title, format: p.format, reach: p.reach, leads: p.leads })),
+    bottom: ranked.slice(-3).map(p => ({ title: p.title, format: p.format, reach: p.reach, leads: p.leads })),
   }
 }
