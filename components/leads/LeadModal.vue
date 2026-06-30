@@ -188,6 +188,7 @@
 <script setup lang="ts">
 import { useLeadsStore } from '~/stores/leads'
 import { useAI } from '~/composables/useAI'
+import EmailComposer from '~/components/leads/EmailComposer.vue'
 import type { Lead, LeadStage } from '~/types'
 
 const props = defineProps<{ lead: Lead }>()
