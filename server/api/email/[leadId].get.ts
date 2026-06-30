@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
     .from('email_messages')
     .select('*')
     .eq('lead_id', leadId)
-    .order('created_at', { ascending: false })
+    .order('created_at', { ascending: true })
 
   if (error) throw createError({ statusCode: 500, message: error.message })
 

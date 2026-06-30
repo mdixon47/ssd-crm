@@ -230,7 +230,8 @@ export interface EmailMessage {
   from_email: string
   subject: string
   body: string
-  status: 'sent' | 'failed'
+  direction: 'outbound' | 'inbound'
+  status: 'sent' | 'failed' | 'received'
   resend_id: string | null
   error: string | null
 }

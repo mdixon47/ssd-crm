@@ -1,16 +1,63 @@
 <template>
   <div class="space-y-4">
+    <!-- Conversation thread -->
+    <div v-if="loadingHistory" class="text-sm text-slate-600 text-center py-4">
+      Loading conversation…
+    </div>
+
+    <div v-else-if="history.length > 0" class="space-y-3">
+      <h4 class="text-xs font-semibold text-slate-500 uppercase">Conversation</h4>
+      <div
+        v-for="msg in history"
+        :key="msg.id"
+        class="flex"
+        :class="msg.direction === 'inbound' ? 'justify-start' : 'justify-end'"
+      >
+        <div
+          class="rounded-xl p-3 text-sm max-w-[85%]"
+          :class="msg.direction === 'inbound'
+            ? 'bg-[#0d1628]'
+            : 'bg-cyan-950/40'"
+          :style="msg.direction === 'inbound'
+            ? 'border:1px solid rgba(148,163,184,0.12)'
+            : 'border:1px solid rgba(6,182,212,0.25)'"
+        >
+          <div class="flex items-center justify-between gap-3 mb-1">
+            <span class="font-medium text-slate-300 truncate">{{ msg.subject }}</span>
+            <span
+              class="text-[10px] shrink-0 px-2 py-0.5 rounded-full font-medium"
+              :class="statusClass(msg.status)"
+            >
+              {{ msg.direction === 'inbound' ? 'received' : msg.status }}
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 mb-1.5">
+            {{ msg.direction === 'inbound' ? msg.from_email + ' →' : '→ ' + msg.to_email }}
+            · {{ formatDate(msg.created_at) }}
+          </p>
+          <p class="text-xs text-slate-300 whitespace-pre-wrap">{{ msg.body }}</p>
+          <p v-if="msg.error" class="text-xs text-red-400 mt-1">⚠ {{ msg.error }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="text-sm text-slate-600 text-center py-4">
+      No emails yet — start the conversation below.
+    </div>
+
     <!-- Compose form -->
     <div class="rounded-xl p-4 space-y-3" style="background:#111d35;border:1px solid rgba(148,163,184,0.1)">
       <div class="flex items-center justify-between">
-        <h4 class="text-sm font-semibold text-slate-300">New Email</h4>
+        <h4 class="text-sm font-semibold text-slate-300">
+          {{ history.length > 0 ? 'Reply' : 'New Email' }}
+        </h4>
         <button
           class="text-xs text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-40"
           :disabled="drafting"
           @click="generateDraft"
         >
-          <span v-if="drafting">Drafting...</span>
-          <span v-else>✨ AI Draft</span>
+          <span v-if="drafting">Drafting…</span>
+          <span v-else>✨ {{ history.length > 0 ? 'AI Reply' : 'AI Draft' }}</span>
         </button>
       </div>
 
@@ -88,31 +135,47 @@
       </div>
     </div>
 
-    <!-- Sent history -->
-    <div v-if="history.length > 0" class="space-y-2">
-      <h4 class="text-xs font-semibold text-slate-500 uppercase">Sent History</h4>
-      <div
-        v-for="msg in history"
-        :key="msg.id"
-        class="rounded-xl p-3 text-sm"
-        style="border:1px solid rgba(148,163,184,0.08);background:#080e1c"
+    <!-- Log a received reply -->
+    <div>
+      <button
+        v-if="!logReplyVisible"
+        class="text-xs text-slate-500 hover:text-cyan-400 transition-colors"
+        @click="logReplyVisible = true"
       >
-        <div class="flex items-center justify-between mb-1">
-          <span class="font-medium text-slate-300 truncate pr-2">{{ msg.subject }}</span>
-          <span
-            class="text-xs shrink-0 px-2 py-0.5 rounded-full font-medium"
-            :class="msg.status === 'sent' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'"
-          >
-            {{ msg.status }}
-          </span>
-        </div>
-        <p class="text-xs text-slate-500">{{ formatDate(msg.created_at) }}</p>
-        <p class="text-xs text-slate-500 mt-1 line-clamp-2 whitespace-pre-wrap">{{ msg.body }}</p>
-      </div>
-    </div>
+        + Log a reply you received
+      </button>
 
-    <div v-else-if="!loadingHistory" class="text-sm text-slate-600 text-center py-4">
-      No emails sent yet.
+      <div v-else class="rounded-xl p-4 space-y-3" style="background:#0d1628;border:1px solid rgba(148,163,184,0.1)">
+        <div class="flex items-center justify-between">
+          <h4 class="text-sm font-semibold text-slate-300">Log received reply</h4>
+          <button class="text-xs text-slate-500 hover:text-slate-300" @click="logReplyVisible = false">Cancel</button>
+        </div>
+        <input
+          v-model="logForm.subject"
+          type="text"
+          placeholder="Subject of their reply…"
+          class="w-full rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none"
+          style="background:#070c18;border:1px solid rgba(148,163,184,0.15)"
+        >
+        <textarea
+          v-model="logForm.body"
+          rows="4"
+          placeholder="Paste the reply you received…"
+          class="w-full rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none resize-none"
+          style="background:#070c18;border:1px solid rgba(148,163,184,0.15)"
+        />
+        <div v-if="logError" class="text-xs text-red-400">{{ logError }}</div>
+        <div class="flex justify-end">
+          <button
+            class="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-200 transition disabled:opacity-50"
+            style="border:1px solid rgba(148,163,184,0.2)"
+            :disabled="loggingReply || !logForm.subject.trim() || !logForm.body.trim()"
+            @click="logReply"
+          >
+            {{ loggingReply ? 'Saving…' : 'Add to conversation' }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -136,8 +199,13 @@ const draftPurposeVisible = ref(false)
 const history = ref<EmailMessage[]>([])
 const loadingHistory = ref(true)
 
+const logReplyVisible = ref(false)
+const loggingReply = ref(false)
+const logError = ref<string | null>(null)
+const logForm = reactive({ subject: '', body: '' })
+
 const canSend = computed(
-  () => form.to && form.subject.trim() && form.body.trim(),
+  () => !!form.to && !!form.subject.trim() && !!form.body.trim(),
 )
 
 async function generateDraft() {
@@ -159,6 +227,11 @@ async function generateDraft() {
           notes: props.lead.notes,
         },
         purpose: draftPurpose.value || undefined,
+        history: history.value.map((m) => ({
+          direction: m.direction,
+          subject: m.subject,
+          body: m.body,
+        })),
       },
     })
     form.subject = res.data.subject
@@ -199,6 +272,33 @@ async function send() {
   }
 }
 
+async function logReply() {
+  if (!logForm.subject.trim() || !logForm.body.trim()) return
+  loggingReply.value = true
+  logError.value = null
+  try {
+    await $fetch('/api/email/log', {
+      method: 'POST',
+      body: {
+        leadId: props.lead.id,
+        from: props.lead.email,
+        subject: logForm.subject,
+        body: logForm.body,
+      },
+    })
+    logForm.subject = ''
+    logForm.body = ''
+    logReplyVisible.value = false
+    await loadHistory()
+  }
+  catch (e: unknown) {
+    logError.value = e instanceof Error ? e.message : 'Failed to log reply'
+  }
+  finally {
+    loggingReply.value = false
+  }
+}
+
 async function loadHistory() {
   loadingHistory.value = true
   try {
@@ -211,6 +311,12 @@ async function loadHistory() {
   finally {
     loadingHistory.value = false
   }
+}
+
+function statusClass(status: string): string {
+  if (status === 'sent') return 'bg-emerald-500/15 text-emerald-400'
+  if (status === 'received') return 'bg-cyan-500/15 text-cyan-400'
+  return 'bg-red-500/15 text-red-400'
 }
 
 function formatDate(iso: string): string {

@@ -13,6 +13,13 @@ export interface EmailDraftResult {
   model_used: string
 }
 
+// A prior message in the lead's email thread, oldest first.
+export interface EmailHistoryItem {
+  direction: 'outbound' | 'inbound'
+  subject: string
+  body: string
+}
+
 const SYSTEM_PROMPT = `You are an email copywriter for SSD Consulting, a firm specializing in:
 - Grant Writing 101 Course (~$597)
 - Grants Management Consulting ($5K–$25K)
@@ -32,6 +39,7 @@ export async function runEmailAgent(
   client: Anthropic,
   lead: Partial<Lead>,
   purpose?: string,
+  history: EmailHistoryItem[] = [],
 ): Promise<EmailDraftResult> {
   const modelUsed = CLAUDE_HAIKU
 
@@ -46,9 +54,28 @@ Source: ${lead.source || 'Unknown'}
 Notes: ${lead.notes || 'None'}
   `.trim()
 
+  const hasThread = history.length > 0
+
+  // Keep the prompt small for the 26s wall — last 6 messages, bodies trimmed.
+  const threadText = hasThread
+    ? history
+        .slice(-6)
+        .map((m) => {
+          const who = m.direction === 'inbound' ? `${lead.fname || 'Lead'}` : 'Malik (SSD)'
+          return `[${who}] Subject: ${m.subject}\n${m.body.slice(0, 600)}`
+        })
+        .join('\n\n---\n\n')
+    : ''
+
   const purposeText = purpose
     ? `Purpose: ${purpose}`
-    : `Purpose: Follow up based on their current pipeline stage`
+    : hasThread
+      ? `Purpose: Write the next reply in this ongoing conversation`
+      : `Purpose: Follow up based on their current pipeline stage`
+
+  const threadBlock = hasThread
+    ? `\n\nConversation so far (oldest first — write the next reply from Malik):\n${threadText}`
+    : ''
 
   const response = await client.messages.create({
     model: modelUsed,
@@ -64,9 +91,10 @@ Notes: ${lead.notes || 'None'}
 }
 
 ${purposeText}
+${hasThread ? 'This is a reply — keep the subject consistent with the thread (add "Re:" if appropriate) and respond directly to their latest message.' : ''}
 
 Lead:
-${leadContext}`,
+${leadContext}${threadBlock}`,
       },
     ],
   })

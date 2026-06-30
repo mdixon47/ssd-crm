@@ -212,7 +212,7 @@ Beyond the AI and MCP routes above, the Nitro server exposes:
 | Area | Routes |
 |------|--------|
 | Leads | `GET/POST /api/leads`, `PATCH /api/leads/:id`, `POST /api/leads/extract` |
-| Email | `POST /api/email/send`, `POST /api/email/draft`, `GET /api/email/:leadId` |
+| Email | `POST /api/email/send`, `POST /api/email/draft`, `POST /api/email/log`, `GET /api/email/:leadId` |
 | Email campaigns | `GET/POST /api/email-campaigns`, `GET/DELETE /api/email-campaigns/:id`, `POST /api/email-campaigns/:id/send`, `POST /api/email-campaigns/preview` |
 | Content | `GET/POST /api/content`, `PATCH/DELETE /api/content/:id` |
 | Appointments | `GET/POST /api/appointments`, `PATCH/DELETE /api/appointments/:id` |
@@ -311,6 +311,7 @@ Run in numeric order in the Supabase SQL editor:
 | `008_email_campaigns.sql` | Email campaign scheduling |
 | `009_sales_calls_appointments_contracts.sql` | Sales calls, appointments, contracts |
 | `010_content_items.sql` | Content items (LinkedIn/FB/IG/Email) |
+| `011_email_conversations.sql` | Two-way email threads (message `direction`) |
 
 ---
 

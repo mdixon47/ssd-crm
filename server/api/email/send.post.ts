@@ -38,6 +38,7 @@ export default defineEventHandler(async (event) => {
       from_email: fromEmail,
       subject,
       body: emailBody,
+      direction: 'outbound',
       status: sendError ? 'failed' : 'sent',
       resend_id: sent?.id ?? null,
       error: sendError ? sendError.message : null,

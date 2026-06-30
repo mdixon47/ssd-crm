@@ -16,6 +16,15 @@ const schema = z.object({
     notes: z.string().optional(),
   }),
   purpose: z.string().optional(),
+  history: z
+    .array(
+      z.object({
+        direction: z.enum(['outbound', 'inbound']),
+        subject: z.string(),
+        body: z.string(),
+      }),
+    )
+    .optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -26,7 +35,12 @@ export default defineEventHandler(async (event) => {
   }
 
   const client = getAnthropicClient()
-  const draft = await runEmailAgent(client, parsed.data.lead as Partial<Lead>, parsed.data.purpose)
+  const draft = await runEmailAgent(
+    client,
+    parsed.data.lead as Partial<Lead>,
+    parsed.data.purpose,
+    parsed.data.history,
+  )
 
   return { data: { subject: draft.subject, body: draft.body } }
 })
