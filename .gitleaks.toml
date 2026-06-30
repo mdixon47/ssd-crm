@@ -1,0 +1,19 @@
+# Gitleaks configuration — https://github.com/gitleaks/gitleaks
+# Extends the full default rule set, then adds one narrow allowlist for a
+# known false positive. Real secrets stay scanned.
+
+[extend]
+useDefault = true
+
+# `SECRETS_SCAN_OMIT_KEYS` holds the NAMES of non-sensitive Netlify identifiers
+# (GA4_PROPERTY_ID, PROJECT_ID) so Netlify's own secret scanner ignores them —
+# they are not credentials. Gitleaks' generic-api-key rule mis-flags the quoted
+# value as a key, in netlify.toml and in docs/issues.md which quotes it. Allow
+# only this exact assignment (any value in the quotes); GA4_PRIVATE_KEY,
+# GA4_CLIENT_EMAIL, and every other secret remain scanned.
+[allowlist]
+description = "Netlify SECRETS_SCAN_OMIT_KEYS — key names, not credentials"
+regexTarget = "line"
+regexes = [
+  '''SECRETS_SCAN_OMIT_KEYS\s*=\s*"[^"]*"''',
+]
