@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { getResendClient, getFromEmail } from '~/server/utils/resend'
+import { getResendClient, getFromEmail, getFromHeader } from '~/server/utils/resend'
 import { createSupabaseClient } from '~/server/utils/supabase'
 
 const schema = z.object({
@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
 
   // Send via Resend
   const { data: sent, error: sendError } = await resend.emails.send({
-    from: `SSD Consulting <${fromEmail}>`,
+    from: getFromHeader(),
     to: [to],
     subject,
     text: emailBody,

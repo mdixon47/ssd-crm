@@ -26,6 +26,15 @@ export function getResendClient(): Resend {
 // (https://resend.com/domains) for delivery to succeed.
 export const FROM_EMAIL = 'stephanie@ssd-consulting.com'
 
+// Display name shown to recipients alongside FROM_EMAIL.
+export const FROM_NAME = 'Stephanie at SSD Consulting'
+
 export function getFromEmail(): string {
   return FROM_EMAIL
+}
+
+// Full RFC 5322 from header — use this for resend.emails.send({ from }) so the
+// display name and address stay consistent across every send path.
+export function getFromHeader(): string {
+  return `${FROM_NAME} <${FROM_EMAIL}>`
 }

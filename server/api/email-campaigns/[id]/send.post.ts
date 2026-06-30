@@ -1,5 +1,5 @@
 import { createSupabaseClient } from '~/server/utils/supabase'
-import { getResendClient, getFromEmail } from '~/server/utils/resend'
+import { getResendClient, getFromHeader } from '~/server/utils/resend'
 import type { EmailCampaignFilter } from '~/types'
 
 function applyMergeTags(text: string, lead: Record<string, string>): string {
@@ -68,7 +68,6 @@ export default defineEventHandler(async (event) => {
   }
 
   const resend = getResendClient()
-  const fromEmail = getFromEmail()
   let sentCount = 0
   let failCount = 0
 
@@ -77,7 +76,7 @@ export default defineEventHandler(async (event) => {
     const personalizedSubject = applyMergeTags(campaign.subject, lead)
 
     const { data: sent, error: sendError } = await resend.emails.send({
-      from: `SSD Consulting <${fromEmail}>`,
+      from: getFromHeader(),
       to: [lead.email],
       subject: personalizedSubject,
       text: personalizedBody,
