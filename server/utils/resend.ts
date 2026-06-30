@@ -17,8 +17,15 @@ export function getResendClient(): Resend {
   return _client
 }
 
+// Canonical sender for ALL outbound email. Every send (single message and
+// campaigns) routes through getFromEmail(), so fixing the address here
+// guarantees one consistent from address across the whole app — it cannot be
+// overridden by an env var. Update this single constant if the sending
+// identity ever changes.
+// NOTE: ssd-consulting.com must be a verified sending domain in Resend
+// (https://resend.com/domains) for delivery to succeed.
+export const FROM_EMAIL = 'stephanie@ssd-consulting.com'
+
 export function getFromEmail(): string {
-  return useRuntimeConfig().resendFromEmail
-    || process.env.RESEND_FROM_EMAIL
-    || 'onboarding@resend.dev'
+  return FROM_EMAIL
 }
