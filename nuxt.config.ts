@@ -19,6 +19,7 @@ export default defineNuxtConfig({
     anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || '',
     resendApiKey: process.env.RESEND_API_KEY || '',
+    phantombusterApiKey: process.env.PHANTOMBUSTER_API_KEY || '',
     // Outbound from-address is fixed in code (FROM_EMAIL in server/utils/resend.ts).
     resendFromEmail: process.env.RESEND_FROM_EMAIL || 'stephanie@ssd-consulting.com',
     // Machine-to-machine secrets (set via NUXT_A2A_SECRET / NUXT_CRON_SECRET env vars)

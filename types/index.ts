@@ -42,6 +42,7 @@ export interface Lead {
   content?: string
   gclid?: string
   landing?: string
+  linkedin_url?: string
   revenue: number
   notes?: string
   lead_date: string

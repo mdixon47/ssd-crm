@@ -157,6 +157,9 @@
       </div>
     </div>
 
+    <!-- LinkedIn Prospecting (PhantomBuster) -->
+    <PhantomBusterPanel @imported="leadsStore.fetchLeads()" />
+
     <!-- Pipeline View -->
     <div v-if="view === 'pipeline'" class="flex gap-3 overflow-x-auto pb-4">
       <div
@@ -252,6 +255,7 @@
 import { useLeadsStore } from '~/stores/leads'
 import { useAI } from '~/composables/useAI'
 import LeadModal from '~/components/leads/LeadModal.vue'
+import PhantomBusterPanel from '~/components/leads/PhantomBusterPanel.vue'
 import type { Lead, EmailStrategyOutput, EmailOutreachSuggestion } from '~/types'
 
 const leadsStore = useLeadsStore()
