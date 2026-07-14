@@ -52,6 +52,11 @@ updates:
       # >=22 <25 → Node 24 types). Bump manually when the Node range moves.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
+      # TypeScript 7 (native compiler) drops the ./lib/tsc subpath export that
+      # vue-tsc / nuxt typecheck still require (ERR_PACKAGE_PATH_NOT_EXPORTED,
+      # PR #23). Revisit when vue-tsc/Nuxt support TS 7.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: '/'
