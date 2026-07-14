@@ -1,4 +1,5 @@
 import { createSupabaseClient } from '~/server/utils/supabase'
+import { throwSingleRowError } from '~/server/utils/ownership'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -25,7 +26,7 @@ export default defineEventHandler(async (event) => {
     .select()
     .single()
 
-  if (error) throw createError({ statusCode: 500, message: error.message })
+  if (error) throwSingleRowError(error)
 
   return { data }
 })

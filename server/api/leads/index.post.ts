@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { createSupabaseClient } from '~/server/utils/supabase'
+import { requireUser } from '~/server/utils/requireUser'
 import { getAnthropicClient } from '~/server/utils/anthropic'
 import { runLeadScorerAgent, type LeadScore } from '~/agents/LeadScorerAgent'
 
@@ -32,6 +33,7 @@ const LeadInsertSchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
+  const user = await requireUser(event)
   const raw = await readBody(event)
   const parsed = LeadInsertSchema.safeParse(raw)
   if (!parsed.success) {
@@ -49,6 +51,9 @@ export default defineEventHandler(async (event) => {
     .from('leads')
     .insert({
       ...body,
+      // Record ownership so migration 007's owner-or-admin delete policy is
+      // enforceable (the service-role key bypasses the RLS DEFAULT auth.uid()).
+      created_by: user.id,
       lead_date: body.lead_date ?? new Date().toISOString().slice(0, 10),
     })
     .select()

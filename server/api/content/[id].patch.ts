@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { createSupabaseClient } from '~/server/utils/supabase'
+import { throwSingleRowError } from '~/server/utils/ownership'
 
 const ALLOWED = ['title', 'body', 'content_type', 'platform', 'status', 'scheduled_at',
   'topic', 'offer', 'tone', 'tags', 'performance'] as const
@@ -42,6 +43,6 @@ export default defineEventHandler(async (event) => {
     .select()
     .single()
 
-  if (error) throw createError({ statusCode: 500, message: error.message })
+  if (error) throwSingleRowError(error)
   return { data }
 })

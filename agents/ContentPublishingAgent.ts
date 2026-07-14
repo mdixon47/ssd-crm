@@ -160,6 +160,7 @@ export async function runContentPublishingAgent(
     offer?: ContentOffer
     tone?: ContentTone
     context?: string
+    createdBy?: string
   },
 ): Promise<ContentPublishResult & { savedIds: string[] }> {
   const contextSummary = await prefetchContext(supabase, request.platform)
@@ -191,6 +192,8 @@ export async function runContentPublishingAgent(
         tone: piece.tone,
         tags: piece.hashtags ?? [],
         performance: {},
+        // null when invoked via A2A (CRM chat) — those drafts are admin-deletable.
+        created_by: request.createdBy ?? null,
       })
       .select()
       .single()

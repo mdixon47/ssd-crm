@@ -3,6 +3,7 @@
 import { z } from 'zod'
 import { getAnthropicClient } from '~/server/utils/anthropic'
 import { createSupabaseClient } from '~/server/utils/supabase'
+import { requireUser } from '~/server/utils/requireUser'
 import { runContentPublishingAgent } from '~/agents/ContentPublishingAgent'
 
 const schema = z.object({
@@ -14,6 +15,7 @@ const schema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
+  const user = await requireUser(event)
   const raw = await readBody(event)
   const parsed = schema.safeParse(raw)
   if (!parsed.success) throw createError({ statusCode: 400, message: parsed.error.message })
@@ -21,7 +23,8 @@ export default defineEventHandler(async (event) => {
   const anthropic = getAnthropicClient()
   const supabase = createSupabaseClient()
 
-  const result = await runContentPublishingAgent(anthropic, supabase, parsed.data)
+  // Record the creator so they can later delete their own drafts (assertCanDelete).
+  const result = await runContentPublishingAgent(anthropic, supabase, { ...parsed.data, createdBy: user.id })
 
   return { data: result }
 })

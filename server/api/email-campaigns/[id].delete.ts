@@ -1,10 +1,14 @@
 import { createSupabaseClient } from '~/server/utils/supabase'
+import { assertCanDelete } from '~/server/utils/ownership'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, message: 'Missing campaign id' })
 
   const supabase = createSupabaseClient()
+
+  // Owner-or-admin + existence (404) — the service-role key bypasses RLS.
+  await assertCanDelete(event, supabase, 'email_campaigns', id)
 
   const { data: campaign } = await supabase
     .from('email_campaigns')
