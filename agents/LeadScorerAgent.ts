@@ -95,10 +95,15 @@ Lead:
 ${leadSummary}`,
       },
     ],
+  }).catch((err: unknown) => {
+    // Network failure or 23s timeout (client is bound at maxRetries:0) — return
+    // null so the block below yields the neutral fallback, never an opaque 500.
+    console.warn('[lead-scorer] AI call failed — using neutral fallback:', err instanceof Error ? err.message : err)
+    return null
   })
 
   try {
-    const raw = response.content[0]?.type === 'text' ? response.content[0].text : '{}'
+    const raw = response && response.content[0]?.type === 'text' ? response.content[0].text : ''
     const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const parsed = JSON.parse(cleaned)
     return {

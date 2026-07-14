@@ -10,7 +10,7 @@
 // All recommendations require explicit human approval.
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
-import type { AuditReport, Campaign, Lead, SearchTerm, NegativeKeyword, GAOverview } from '~/types'
+import type { AuditReport, Campaign, Lead, SearchTerm, NegativeKeyword, GAOverview, DataMode } from '~/types'
 import { CLAUDE_HAIKU } from '~/lib/models'
 
 const SYSTEM_PROMPT = `You are SSD Consulting's senior paid acquisition strategist. Your job is to run a comprehensive weekly audit of all paid channels.
@@ -73,9 +73,10 @@ export async function runWeeklyAuditAgent(
     negativeKeywords: NegativeKeyword[]
     webAnalytics?: GAOverview
     weekDate?: string
+    dataMode?: DataMode
   },
 ): Promise<AuditReport> {
-  const { campaigns, leads, searchTerms, negativeKeywords, webAnalytics, weekDate } = context
+  const { campaigns, leads, searchTerms, negativeKeywords, webAnalytics, weekDate, dataMode = 'mock' } = context
   const modelUsed = CLAUDE_HAIKU
 
   // Every audit "tool" is a pure function of the injected context — compute them
@@ -92,7 +93,11 @@ export async function runWeeklyAuditAgent(
     website_analytics: tool('get_website_analytics'),
   }
 
-  const userPrompt = `Run the weekly paid acquisition audit for SSD Consulting, then submit it via submit_audit.
+  const modeNote = dataMode === 'mock'
+    ? 'IMPORTANT: The campaign/ads figures below are SAMPLE/MOCK data, not live ad-platform performance. Keep findings illustrative and do NOT present these numbers as real, verified results.\n\n'
+    : ''
+
+  const userPrompt = `${modeNote}Run the weekly paid acquisition audit for SSD Consulting, then submit it via submit_audit.
 Week: ${weekDate || new Date().toISOString().slice(0, 10)}
 Total campaigns: ${campaigns.length}
 Leads this period: ${leads.filter(l => new Date(l.lead_date) > new Date(Date.now() - 7 * 86400 * 1000)).length}
@@ -109,10 +114,15 @@ Analyze all of it and produce the structured audit report — be specific and na
     tools: [SUBMIT_AUDIT],
     tool_choice: { type: 'tool', name: 'submit_audit' },
     messages: [{ role: 'user', content: userPrompt }],
+  }).catch((err: unknown) => {
+    // Timeout/429/529 → null, which falls through to the structured fallback
+    // below instead of surfacing an opaque 500 to the caller.
+    console.warn('[weekly-audit] AI call failed — using fallback report:', err instanceof Error ? err.message : err)
+    return null
   })
 
   const generatedAt = new Date().toISOString()
-  const block = response.content.find(b => b.type === 'tool_use')
+  const block = response?.content.find(b => b.type === 'tool_use')
 
   if (!block || block.type !== 'tool_use') {
     return {

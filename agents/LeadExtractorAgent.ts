@@ -77,10 +77,15 @@ ${rawText.slice(0, 12_000)}
 """`,
       },
     ],
+  }).catch((err: unknown) => {
+    // Network failure or 23s timeout — return null so the block below yields the
+    // manual-entry fallback instead of surfacing an opaque 500.
+    console.warn('[lead-extractor] AI call failed — using manual-entry fallback:', err instanceof Error ? err.message : err)
+    return null
   })
 
   try {
-    const raw = response.content[0]?.type === 'text' ? response.content[0].text : '{}'
+    const raw = response && response.content[0]?.type === 'text' ? response.content[0].text : ''
     const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const parsed = JSON.parse(cleaned) as Partial<ExtractedLead>
 

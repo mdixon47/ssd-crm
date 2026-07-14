@@ -20,7 +20,7 @@
 // any spend, audience, or campaign change is implemented.
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
-import type { SocialPlatformData, SocialStrategyOutput } from '~/types'
+import type { SocialPlatformData, SocialStrategyOutput, DataMode } from '~/types'
 import { CLAUDE_HAIKU } from '~/lib/models'
 
 const PLATFORM_NAMES: Record<string, string> = { fb: 'Facebook', ig: 'Instagram', li: 'LinkedIn' }
@@ -96,6 +96,7 @@ export async function runSocialMediaAgent(
   client: Anthropic,
   platformKey: 'fb' | 'ig' | 'li',
   platform: SocialPlatformData,
+  dataMode: DataMode = 'mock',
 ): Promise<SocialStrategyOutput> {
   const modelUsed = CLAUDE_HAIKU
   const name = PLATFORM_NAMES[platformKey]
@@ -106,7 +107,11 @@ export async function runSocialMediaAgent(
   const engagement = computePostEngagement(platform)
   const inventory = { audiences: platform.audiences, ad_formats: platform.adFormats }
 
-  const userPrompt = `Analyze SSD Consulting's ${name} performance, then submit the strategy via submit_strategy.
+  const modeNote = dataMode === 'mock'
+    ? 'IMPORTANT: The metrics below are SAMPLE/MOCK data, not live ad-platform performance. Keep your analysis illustrative and do NOT present these numbers as real, verified results.\n\n'
+    : ''
+
+  const userPrompt = `${modeNote}Analyze SSD Consulting's ${name} performance, then submit the strategy via submit_strategy.
 
 PLATFORM: ${name}
 TAGLINE: ${platform.tagline}

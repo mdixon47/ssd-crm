@@ -13,7 +13,7 @@ import type Anthropic from '@anthropic-ai/sdk'
 import { CLAUDE_HAIKU } from '~/lib/models'
 import { runEmailAgent } from '~/agents/EmailAgent'
 import { runContentPublishingAgent } from '~/agents/ContentPublishingAgent'
-import { GOOGLE_CAMPAIGNS } from '~/lib/mockData'
+import { getGoogleCampaigns } from '~/server/utils/campaigns'
 import type { createSupabaseClient } from '~/server/utils/supabase'
 
 type SupabaseClient = ReturnType<typeof createSupabaseClient>
@@ -339,7 +339,9 @@ async function executeTool(
       if (lead.qualified === 'yes') byCampaign[key].qualified++
     }
 
-    const platformData = GOOGLE_CAMPAIGNS.map(c => ({
+    // Ad-platform data: live when Google Ads is configured, else mock (labelled).
+    const { mode: adDataMode, campaigns } = await getGoogleCampaigns()
+    const platformData = campaigns.map(c => ({
       name: c.name,
       platform: c.platform,
       spend: c.spend,
@@ -351,8 +353,8 @@ async function executeTool(
     }))
 
     return {
-      result: JSON.stringify({ crm_by_campaign: byCampaign, ad_platform_data: platformData }),
-      summary: `Retrieved performance data for ${Object.keys(byCampaign).length} CRM campaigns + ${platformData.length} ad platform campaigns`,
+      result: JSON.stringify({ ad_data_mode: adDataMode, crm_by_campaign: byCampaign, ad_platform_data: platformData }),
+      summary: `Retrieved performance data for ${Object.keys(byCampaign).length} CRM campaigns + ${platformData.length} ${adDataMode} ad platform campaigns`,
     }
   }
 
@@ -446,7 +448,13 @@ export async function runCRMOperationsAgent(
       system: SYSTEM_PROMPT,
       tools: TOOLS,
       messages,
+    }).catch((err: unknown) => {
+      // Timeout/overload mid-loop: stop and return partial progress (any actions
+      // already taken) via the fallback return below, not an opaque 500.
+      console.warn('[crm-agent] Anthropic call failed mid-loop:', err instanceof Error ? err.message : err)
+      return null
     })
+    if (!response) break
 
     messages.push({ role: 'assistant', content: response.content })
 

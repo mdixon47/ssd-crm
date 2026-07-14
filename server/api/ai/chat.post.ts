@@ -2,7 +2,7 @@
 import { z } from 'zod'
 import { getAnthropicClient } from '~/server/utils/anthropic'
 import { createSupabaseClient } from '~/server/utils/supabase'
-import { GOOGLE_CAMPAIGNS } from '~/lib/mockData'
+import { getGoogleCampaigns } from '~/server/utils/campaigns'
 import { CLAUDE_HAIKU } from '~/lib/models'
 
 const schema = z.object({
@@ -41,17 +41,23 @@ export default defineEventHandler(async (event) => {
   const client = getAnthropicClient()
   const supabase = createSupabaseClient()
 
-  // Fetch quick context
-  const { data: recentLeads } = await supabase
-    .from('leads')
-    .select('fname, lname, org, stage, campaign, revenue, qualified')
-    .order('created_at', { ascending: false })
-    .limit(10)
+  // Fetch quick context (campaign data is live when configured, else mock)
+  const [{ data: recentLeads }, { mode: campaignMode, campaigns }] = await Promise.all([
+    supabase
+      .from('leads')
+      .select('fname, lname, org, stage, campaign, revenue, qualified')
+      .order('created_at', { ascending: false })
+      .limit(10),
+    getGoogleCampaigns(),
+  ])
 
+  const campaignLabel = campaignMode === 'mock'
+    ? 'SAMPLE/MOCK — not live Google Ads; do not present as real performance'
+    : 'live Google Ads'
   const contextBlock = `
-Current campaign data: ${JSON.stringify(GOOGLE_CAMPAIGNS.map(c => ({
+Campaign data (${campaignLabel}): ${JSON.stringify(campaigns.map(c => ({
     name: c.name, spend: c.spend, leads: c.leads, revenue: c.revenue,
-    roas: (c.revenue / c.spend).toFixed(2),
+    roas: c.spend > 0 ? (c.revenue / c.spend).toFixed(2) : '0',
   })))}
 
 Recent leads: ${JSON.stringify(recentLeads ?? [])}
@@ -67,9 +73,15 @@ Recent leads: ${JSON.stringify(recentLeads ?? [])}
       ...historyMessages,
       { role: 'user', content: message },
     ],
+  }).catch((err: unknown) => {
+    // Timeout/429/529 → null so we return a friendly message, not an opaque 500.
+    console.warn('[ai-chat] Anthropic call failed:', err instanceof Error ? err.message : err)
+    return null
   })
 
-  const reply = response.content[0]?.type === 'text' ? response.content[0].text : ''
+  const reply = response?.content[0]?.type === 'text'
+    ? response.content[0].text
+    : 'Sorry — the AI assistant is temporarily unavailable (the request may have timed out). Please try again in a moment.'
 
   return { data: { reply } }
 })

@@ -97,10 +97,15 @@ Lead:
 ${leadContext}${threadBlock}`,
       },
     ],
+  }).catch((err: unknown) => {
+    // Network failure or 23s timeout — return null so the block below yields the
+    // generic follow-up fallback instead of surfacing an opaque 500.
+    console.warn('[email-agent] AI call failed — using generic follow-up fallback:', err instanceof Error ? err.message : err)
+    return null
   })
 
   try {
-    const raw = response.content[0]?.type === 'text' ? response.content[0].text : '{}'
+    const raw = response && response.content[0]?.type === 'text' ? response.content[0].text : ''
     const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const parsed = JSON.parse(cleaned)
     return {

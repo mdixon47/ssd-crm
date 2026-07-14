@@ -158,10 +158,15 @@ ${JSON.stringify(highValue)}
 Keep each email body under ~90 words. Call plan_outreach with the complete plan.`,
       },
     ],
+  }).catch((err: unknown) => {
+    // Timeout/429/529 → null, which falls through to the empty-plan fallback
+    // below instead of surfacing an opaque 500 to the caller.
+    console.warn('[email-strategist] AI call failed — returning empty plan:', err instanceof Error ? err.message : err)
+    return null
   })
 
-  const tokens = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
-  const toolBlock = response.content.find(b => b.type === 'tool_use' && b.name === 'plan_outreach')
+  const tokens = (response?.usage?.input_tokens ?? 0) + (response?.usage?.output_tokens ?? 0)
+  const toolBlock = response?.content.find(b => b.type === 'tool_use' && b.name === 'plan_outreach')
 
   if (!toolBlock || toolBlock.type !== 'tool_use') {
     return {

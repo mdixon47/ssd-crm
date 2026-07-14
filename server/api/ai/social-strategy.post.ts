@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { getAnthropicClient } from '~/server/utils/anthropic'
 import { runSocialMediaAgent } from '~/agents/SocialMediaAgent'
-import { SOCIAL_PLATFORMS } from '~/lib/mockData'
+import { getSocialPlatform } from '~/server/utils/social'
 
 const schema = z.object({
   platform: z.enum(['fb', 'ig', 'li']),
@@ -15,13 +15,13 @@ export default defineEventHandler(async (event) => {
   }
 
   const platformKey = parsed.data.platform
-  const platform = SOCIAL_PLATFORMS[platformKey]
+  const { mode, platform } = await getSocialPlatform(platformKey)
   if (!platform) {
     throw createError({ statusCode: 404, message: `Unknown platform: ${platformKey}` })
   }
 
   const client = getAnthropicClient()
-  const result = await runSocialMediaAgent(client, platformKey, platform)
+  const result = await runSocialMediaAgent(client, platformKey, platform, mode)
 
-  return { data: result }
+  return { data: result, dataMode: mode }
 })

@@ -1,20 +1,24 @@
 import { getAnthropicClient } from '~/server/utils/anthropic'
 import { createSupabaseClient } from '~/server/utils/supabase'
 import { runCampaignOptimizerAgent } from '~/agents/CampaignOptimizerAgent'
-import { GOOGLE_CAMPAIGNS } from '~/lib/mockData'
+import { getGoogleCampaigns } from '~/server/utils/campaigns'
 
 export default defineEventHandler(async (_event) => {
   const client = getAnthropicClient()
   const supabase = createSupabaseClient()
 
-  // Fetch leads for context
-  const { data: leads } = await supabase.from('leads').select('*')
+  // Leads for context + campaign data (live when Google Ads is configured, else mock).
+  const [{ data: leads }, { mode, campaigns }] = await Promise.all([
+    supabase.from('leads').select('*'),
+    getGoogleCampaigns(),
+  ])
 
   const result = await runCampaignOptimizerAgent(
     client,
-    GOOGLE_CAMPAIGNS,
+    campaigns,
     leads ?? [],
+    mode,
   )
 
-  return { data: result }
+  return { data: result, dataMode: mode }
 })

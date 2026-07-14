@@ -2,6 +2,11 @@
 // SSD Consulting CRM — Core TypeScript Types
 // ============================================================
 
+// Whether a data payload came from a live integration or scaled mock data.
+// Surfaced by the server data-layer helpers (googleAnalytics / campaigns /
+// social) so the UI and AI never present mock figures as real performance.
+export type DataMode = 'live' | 'mock'
+
 // ------------------------------------------------------------
 // Leads
 // ------------------------------------------------------------

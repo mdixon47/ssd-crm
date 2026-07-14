@@ -6,7 +6,7 @@
 // ⚠️  Human approval required before acting on any output.
 // ============================================================
 import type Anthropic from '@anthropic-ai/sdk'
-import type { Campaign, Lead } from '~/types'
+import type { Campaign, Lead, DataMode } from '~/types'
 import { CLAUDE_HAIKU } from '~/lib/models'
 
 export interface CampaignRecommendation {
@@ -93,6 +93,7 @@ export async function runCampaignOptimizerAgent(
   client: Anthropic,
   campaigns: Campaign[],
   leads: Lead[],
+  dataMode: DataMode = 'mock',
 ): Promise<OptimizerOutput> {
   const modelUsed = CLAUDE_HAIKU
 
@@ -103,7 +104,11 @@ export async function runCampaignOptimizerAgent(
   const quality = handleToolCall('get_lead_quality_report', {}, campaigns, leads)
   const waste = handleToolCall('get_waste_analysis', { min_spend: 50 }, campaigns, leads)
 
-  const userPrompt = `Analyze SSD Consulting's campaign performance and submit recommendations via submit_optimization.
+  const modeNote = dataMode === 'mock'
+    ? 'IMPORTANT: The campaign figures below are SAMPLE/MOCK data, not live Google Ads performance. Keep your analysis illustrative and do NOT present these numbers as real, verified results.\n\n'
+    : ''
+
+  const userPrompt = `${modeNote}Analyze SSD Consulting's campaign performance and submit recommendations via submit_optimization.
 
 SUMMARY:
 - Total campaigns: ${campaigns.length}
@@ -129,10 +134,15 @@ Provide scaling/pausing/optimization recommendations, budget shifts, keyword act
     tools: [SUBMIT_OPTIMIZATION],
     tool_choice: { type: 'tool', name: 'submit_optimization' },
     messages: [{ role: 'user', content: userPrompt }],
+  }).catch((err: unknown) => {
+    // Timeout/429/529 → null, which falls through to the structured fallback
+    // below instead of surfacing an opaque 500 to the caller.
+    console.warn('[campaign-optimizer] AI call failed — using fallback:', err instanceof Error ? err.message : err)
+    return null
   })
 
-  const tokensUsed = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
-  const block = response.content.find(b => b.type === 'tool_use')
+  const tokensUsed = (response?.usage?.input_tokens ?? 0) + (response?.usage?.output_tokens ?? 0)
+  const block = response?.content.find(b => b.type === 'tool_use')
 
   if (!block || block.type !== 'tool_use') {
     return {
