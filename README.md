@@ -2,9 +2,10 @@
 
 A full-stack CRM purpose-built for SSD Consulting's paid acquisition system.
 Tracks Google Ads, Meta, LinkedIn, and email/content campaigns through the SSD lead
-pipeline, with a fleet of Claude-powered AI agents that analyze performance, score
-leads, draft outreach, and publish content — all advisory, with **human approval
-required before anything is changed or sent**.
+pipeline, sources new LinkedIn prospects via PhantomBuster, and runs a fleet of
+Claude-powered AI agents that analyze performance, score leads, draft outreach, and
+publish content — all advisory, with **human approval required before anything is
+changed or sent**.
 
 ---
 
@@ -19,6 +20,7 @@ required before anything is changed or sent**.
 | AI | Anthropic SDK — Claude Haiku 4.5 (all agents) |
 | MCP | `@modelcontextprotocol/sdk` |
 | Analytics | Google Analytics 4 (Data API) |
+| Lead sourcing | PhantomBuster (LinkedIn phantoms, REST API v2) |
 | Email | Resend |
 | Video | Remotion (separate project in `marketing/video/`) |
 | Charts | Chart.js |
@@ -48,8 +50,10 @@ cp .env.example .env
 ```
 
 The app runs entirely on **mock data** with only `ANTHROPIC_API_KEY` and the Supabase
-keys set. Every external integration (Google Ads, Meta, LinkedIn, GA4, Resend) falls
-back to mock data when its keys are absent.
+keys set. Every external integration (Google Ads, Meta, LinkedIn, GA4, Resend,
+PhantomBuster) degrades gracefully when its keys are absent — and mock data is
+explicitly labelled (`DataMode`) so the AI agents never present sample figures as
+real performance.
 
 ```
 # ── Anthropic (required for all AI agents) ──
@@ -88,6 +92,9 @@ GA4_PROPERTY_ID=
 GA4_CLIENT_EMAIL=
 GA4_PRIVATE_KEY=
 
+# ── PhantomBuster (optional — LinkedIn lead sourcing) ──
+PHANTOMBUSTER_API_KEY=
+
 # ── Machine-to-machine secrets ──
 NUXT_A2A_SECRET=     # Bearer token for /api/a2a/*
 NUXT_CRON_SECRET=    # Bearer token for /api/cron/* (also a GitHub Actions secret)
@@ -99,7 +106,7 @@ by the Remotion pipeline).
 ### 3. Initialize the database
 
 In the Supabase dashboard, open the SQL editor and run the migrations in
-`supabase/migrations/` **in numeric order** (`001` → `010`). See
+`supabase/migrations/` **in numeric order** (`001` → `012`). See
 [Database Migrations](#database-migrations) below.
 
 ### 4. Run locally
@@ -186,7 +193,7 @@ Implementations live in `server/mcp/`.
 | Route | Description |
 |-------|-------------|
 | `/` | Performance dashboard — KPIs, AI weekly-audit result, scaling recommendations |
-| `/leads` | Pipeline kanban + list view with campaign filters |
+| `/leads` | Pipeline kanban + list view, campaign filters, AI email strategist, LinkedIn prospecting panel |
 | `/leads/add` | Add a lead manually or via email extraction |
 | `/campaigns` | Tabbed campaigns — Google Ads / Social / Email |
 | `/search-terms` | Search-term labeling with AI auto-label |
@@ -212,6 +219,7 @@ Beyond the AI and MCP routes above, the Nitro server exposes:
 | Area | Routes |
 |------|--------|
 | Leads | `GET/POST /api/leads`, `PATCH /api/leads/:id`, `POST /api/leads/extract` |
+| PhantomBuster | `GET /api/phantombuster` (list phantoms), `POST /api/phantombuster/launch`, `GET /api/phantombuster/containers/:id` (run status), `POST /api/phantombuster/import` |
 | Email | `POST /api/email/send`, `POST /api/email/draft`, `POST /api/email/log`, `GET /api/email/:leadId` |
 | Email campaigns | `GET/POST /api/email-campaigns`, `GET/DELETE /api/email-campaigns/:id`, `POST /api/email-campaigns/:id/send`, `POST /api/email-campaigns/preview` |
 | Content | `GET/POST /api/content`, `PATCH/DELETE /api/content/:id` |
@@ -231,11 +239,38 @@ then sends.
 ## Lead Pipeline Stages
 
 ```
-New Lead → Contacted → Booked Consultation → Qualified →
-Proposal Sent → Purchased Course → Became Consulting Client
+New Lead → Contacted → Booked Consultation → Sales Call → Qualified →
+Proposal Sent → Contract Signed → Contract Paid →
+Purchased Course / Became Consulting Client
                               ↓
-                       Not a Fit / Lost / No Response
+                       Not a Fit / Lost/No Response
 ```
+
+---
+
+## LinkedIn Lead Sourcing (PhantomBuster)
+
+The **LinkedIn Prospecting** panel on `/leads` launches a PhantomBuster
+"LinkedIn Search Export" phantom, polls the run, and imports the results as
+pipeline leads (`source: linkedin`, stage "New Lead", profile URL stored in
+`linkedin_url`). Imports dedupe against existing leads by normalized profile URL
+and email, so re-imports never duplicate.
+
+Setup (one-time):
+
+1. **PhantomBuster account** — install a *LinkedIn Search Export* phantom from
+   the store and connect your LinkedIn account. Connecting creates a workspace
+   *identity*; make sure it's attached to the phantom (open the phantom's setup —
+   the saved config must reference the identity or launches fail validation).
+2. **API key** — PhantomBuster → Workspace settings → API keys →
+   `PHANTOMBUSTER_API_KEY` in `.env` **and** in the Netlify env vars.
+3. **Migration 012** — adds the `linkedin_url` column (the import degrades
+   gracefully to `notes` without it).
+
+Because scrapes run minutes-long and the Netlify function wall is 26s, the
+browser polls the run status (5s interval) rather than the server waiting.
+Launches run through **your** connected LinkedIn account — keep result counts
+small and infrequent; aggressive scraping risks a LinkedIn restriction.
 
 ---
 
@@ -290,6 +325,7 @@ The app works without any optional API keys (mock data everywhere). To go live:
 5. **Meta** — create a Meta App, generate a long-lived System User token
 6. **LinkedIn** — create a LinkedIn App with Marketing API access, generate an access token
 7. **GA4** — create a GCP service account with Analytics read access → `GA4_PROPERTY_ID`, `GA4_CLIENT_EMAIL`, `GA4_PRIVATE_KEY`
+8. **PhantomBuster** — create a workspace API key and connect a LinkedIn account → `PHANTOMBUSTER_API_KEY` (see [LinkedIn Lead Sourcing](#linkedin-lead-sourcing-phantombuster))
 
 See `docs/live-data.md` for the detailed integration guide.
 
@@ -312,6 +348,7 @@ Run in numeric order in the Supabase SQL editor:
 | `009_sales_calls_appointments_contracts.sql` | Sales calls, appointments, contracts |
 | `010_content_items.sql` | Content items (LinkedIn/FB/IG/Email) |
 | `011_email_conversations.sql` | Two-way email threads (message `direction`) |
+| `012_lead_linkedin_url.sql` | `linkedin_url` on leads (PhantomBuster imports + dedupe) |
 
 ---
 
@@ -354,7 +391,7 @@ ssd-crm/
 ├── components/
 │   ├── ai/AIPanel.vue            # Slide-in AI chat panel
 │   ├── campaigns/EmailCampaignModal.vue
-│   └── leads/{LeadModal,EmailComposer}.vue
+│   └── leads/{LeadModal,EmailComposer,PhantomBusterPanel}.vue
 ├── composables/
 │   ├── useAI.ts                  # AI feature composable
 │   ├── useAuth.ts                # Auth state
@@ -372,13 +409,16 @@ ssd-crm/
 │   │   ├── content/              # Content items CRUD
 │   │   ├── appointments/  sales-calls/  contracts/
 │   │   ├── analytics/            # GA4-backed dashboard data
+│   │   ├── phantombuster/        # LinkedIn phantom launch/status/import
 │   │   ├── cron/                 # Scheduled-publish trigger
 │   │   ├── a2a/                  # Agent-to-agent gateway
 │   │   └── mcp/[server].post.ts  # MCP router
 │   ├── mcp/                      # MCP server implementations
-│   └── utils/                    # Supabase + Anthropic clients
+│   └── utils/                    # Supabase/Anthropic/Resend/PhantomBuster clients,
+│                                 #   live-or-mock data layer, ownership guards
 ├── stores/leads.ts               # Pinia leads store
-├── supabase/migrations/          # 001 … 010
+├── supabase/migrations/          # 001 … 012
+├── tests/                        # vitest — agent fallbacks, PhantomBuster mapper
 ├── marketing/video/              # Remotion project (isolated)
 ├── docs/                         # SECURITY, devsecops, live-data, issues, …
 ├── types/index.ts
