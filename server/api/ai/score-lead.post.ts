@@ -4,20 +4,24 @@ import { getAnthropicClient } from '~/server/utils/anthropic'
 import { runLeadScorerAgent } from '~/agents/LeadScorerAgent'
 
 const schema = z.object({
+  // .nullish(), not .optional(): the modal forwards the lead row straight
+  // from Supabase, where empty columns come back as null, and zod's
+  // .optional() rejects null — sparse leads (e.g. PhantomBuster imports)
+  // would 400 before the agent ever ran.
   lead: z.object({
-    fname: z.string().optional(),
-    lname: z.string().optional(),
-    email: z.string().optional(),
-    org: z.string().optional(),
-    title: z.string().optional(),
-    interest: z.string().optional(),
-    source: z.string().optional(),
-    campaign: z.string().optional(),
-    keyword: z.string().optional(),
-    notes: z.string().optional(),
-    stage: z.string().optional(),
-    qualified: z.string().optional(),
-    revenue: z.number().optional(),
+    fname: z.string().nullish(),
+    lname: z.string().nullish(),
+    email: z.string().nullish(),
+    org: z.string().nullish(),
+    title: z.string().nullish(),
+    interest: z.string().nullish(),
+    source: z.string().nullish(),
+    campaign: z.string().nullish(),
+    keyword: z.string().nullish(),
+    notes: z.string().nullish(),
+    stage: z.string().nullish(),
+    qualified: z.string().nullish(),
+    revenue: z.number().nullish(),
   }),
 })
 
