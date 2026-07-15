@@ -44,6 +44,14 @@ After rotation, paste new values directly into `.env` (not through chat), update
 ### 14. No per-IP rate limiting
 `/api/leads`, `/api/ai/*`, and `/api/a2a/*` are uncapped. In-memory rate limiting is not viable for serverless (each invocation is a fresh process). Requires **Upstash Ratelimit** (`@upstash/ratelimit` + `@upstash/redis`) — set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`, add a Nitro plugin that wraps AI and A2A routes. See `improvement.md` I-11. Deferred until Upstash is provisioned.
 
+### 29. PhantomBuster: key missing on Netlify + trial expires ~2026-07-28
+The LinkedIn Prospecting integration (see `update.md` 2026-07-14) is live-verified locally, but two production gaps remain:
+
+1. **`PHANTOMBUSTER_API_KEY` is not set in Netlify env** — the deployed `/leads` panel shows the "add your key" hint until it's added (Site settings → Environment variables). The route degrades gracefully; nothing errors.
+2. **The PhantomBuster workspace is a 14-day Starter Trial started 2026-07-14** (5 phantom slots, 2h/day execution). When it lapses (~2026-07-28), launches will start failing with plan errors until a paid plan is chosen. The CRM surfaces PhantomBuster's error message in the panel, so this fails loud, not silent.
+
+Also note the account-safety posture baked into the UI: launches default to small result counts; scraping runs through the connected LinkedIn account and aggressive volume risks a LinkedIn restriction.
+
 ### 22. Content Hub: "Publish" button is manual only (no platform API integration)
 Clicking "Mark Published" records the status change in the DB but does not push to LinkedIn, Facebook, Instagram, or email. Real integrations require OAuth app credentials:
 
@@ -111,6 +119,15 @@ Root cause of the 2026-06-24 production deploy failures (`3dbe3f0`→`f93bc35` a
 **Fix:** redacted the literal from docs + `SECRETS_SCAN_OMIT_KEYS = "GA4_PROPERTY_ID,PROJECT_ID"` in `netlify.toml` (non-sensitive identifiers; `GA4_PRIVATE_KEY` / `GA4_CLIENT_EMAIL` stay scanned). **Rule going forward:** never paste real env-var values (IDs, URLs, keys) into committed files — use placeholders. If a non-sensitive value must appear, add its key to `SECRETS_SCAN_OMIT_KEYS`.
 
 **Second scanner (gitleaks, 2026-06-30):** the weekly full-history **Security** workflow's gitleaks job then started failing — its `generic-api-key` rule flags the `SECRETS_SCAN_OMIT_KEYS = "…"` line itself (in `netlify.toml` and where `docs/issues.md` quotes it) as a key. PR/push runs scan only the diff and stayed green; the scheduled/dispatch run scans full history and caught it. Fixed with a narrow `.gitleaks.toml` allowlist (`regexTarget = "line"`, regex `SECRETS_SCAN_OMIT_KEYS\s*=\s*"[^"]*"`) — all real-secret rules stay active. So two independent scanners (Netlify build + gitleaks CI) both react to this line; if you ever change the `SECRETS_SCAN_OMIT_KEYS` assignment, the `.gitleaks.toml` regex already covers any value inside the quotes.
+
+### 30. TypeScript 7 + pinia 4 majors blocked (dependabot ignores in place)
+Two dependabot majors failed CI and are now ignored in `.github/dependabot.yml` (2026-07-14):
+
+- **`typescript` 7.x** (PR #23): the native-compiler release drops the `./lib/tsc` subpath export that `vue-tsc` / `nuxt typecheck` require → `ERR_PACKAGE_PATH_NOT_EXPORTED` in the Lint and Typecheck jobs. **Exit criteria:** vue-tsc (or Nuxt's typecheck path) ships TS 7 support — then remove the ignore and bump.
+- **`pinia` 4.x / `@pinia/nuxt` 1.x** (PR #25): type declarations unresolvable on the Nuxt 3 toolchain (`TS7016: Could not find a declaration file for module 'pinia'`). **Exit criteria:** take together with a coordinated Nuxt major upgrade (the existing `nuxt` major ignore already gates that).
+
+### 31. zod `.optional()` rejects `null` — DB-row-derived schemas must use `.nullish()`
+Root cause of the `POST /api/email/draft: 400` bug (fixed 2026-07-14, `90f498e`; same trap in `ai/score-lead`). Supabase returns `null` for empty text columns, and UI code forwards lead rows as-is — but `z.string().optional()` accepts only `undefined` and fails on `null`, so validation 400'd sparse leads (every PhantomBuster import) before the handler ran. **Rule going forward:** any zod schema that validates objects derived from DB rows (rather than user-typed form input) must use `.nullish()` for nullable columns. Audit candidates when touching a route: does the client send a raw store/DB object? Then nulls will arrive.
 
 ### 26. `crm-agent` chat orchestrator can still approach the 26s limit
 The serial-loop 504s in the analysis agents were fixed by collapsing to a single forced-tool call (see update.md 2026-06-23). `CRMOperationsAgent` (`/api/ai/crm-agent`) is a genuine interactive chat orchestrator with dynamic tool routing + DB writes, so it can't be collapsed; it's bounded to `MAX_ITER=6` and its delegated sub-agents (content/social) are now single-call. A very complex multi-step request (many tool turns, or delegating heavy content generation mid-chat) could still approach the limit. The real fix is **streaming the response** (Netlify streaming / Nitro) or moving long operations to a **background function** — deferred until it's actually hit.

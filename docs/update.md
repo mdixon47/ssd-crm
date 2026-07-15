@@ -5,6 +5,50 @@ See [`README.md`](./README.md) for the architecture overview, [`issues.md`](./is
 
 ---
 
+## 2026-07-14 (PhantomBuster LinkedIn prospecting + AI hardening + ownership + workflow repair)
+
+### PhantomBuster LinkedIn prospecting integrated into the pipeline (`feat 3eb329b`, `fix 90f498e`)
+
+Launch LinkedIn Search Export phantoms, poll the run, and import results as deduped pipeline leads — from a new **LinkedIn Prospecting** panel on `/leads`.
+
+- **Workspace (PhantomBuster side):** trial workspace configured via the PhantomBuster MCP — installed "SSD CRM - LinkedIn Search Export" (store script 3149, agent `4412622279921217`) and attached the connected LinkedIn identity to its saved argument. Note: connecting an account in PhantomBuster creates a workspace *identity* but does **not** bind it to a phantom — the phantom's argument needs `identities: [{ identityId }]` or launches fail schema validation.
+- **Server:** `server/utils/phantombuster.ts` — REST v2 client (`X-Phantombuster-Key`, 20s timeout under the Netlify 26s wall) + a pure, unit-tested row→Lead mapper (alias-tolerant field probing, normalized-profile-URL dedupe keys). Routes: `GET /api/phantombuster` (list), `POST …/launch` (merges the saved argument so per-run keyword/count overrides don't wipe identity config — a launch-time argument **replaces** the saved one), `GET …/containers/[id]` (status), `POST …/import` (dedupe by profile URL + email, 500-row cap, `source: 'linkedin'`, stage "New Lead").
+- **Container status semantics:** a normally-ended run reports `endType: "finished"` whether it succeeded or errored — `exitCode` (0/1) is the real outcome signal; `endType` only distinguishes abnormal ends (killed / launch error). The first implementation keyed off `endType === 'success'` and would have discarded every successful run.
+- **26s-wall design:** scrapes run minutes-long, so the browser polls the status route every 5s (up to 5 min) instead of the server waiting; import is a separate fast call.
+- **DB:** migration `012_lead_linkedin_url.sql` (`linkedin_url` column + index) — **applied to the live project** via the Management API. The import route degrades gracefully (URL into `notes`) if the column is missing.
+- **Verified live end-to-end:** real launch → poll → import of 5 nonprofit-ED leads; immediate re-import deduped all 5; leads landed in the pipeline with org/title/keyword/`linkedin_url`.
+- **Env:** `PHANTOMBUSTER_API_KEY` (runtimeConfig `phantombusterApiKey`) — set locally; **not yet added to Netlify** (see issues.md #29). API-key auth is the only option for the app — the hosted MCP endpoint is OAuth-only.
+- Also registered the PhantomBuster MCP server for Claude Code sessions (project-scoped, OAuth via Stytch) and added a project verify skill (`.claude/skills/verify/SKILL.md`) documenting the build/launch/auth-cookie recipe used for runtime verification.
+
+### Sparse-lead 400s fixed in email/draft + ai/score-lead (`fix 90f498e`)
+
+Both routes' zod schemas used `.optional()` on lead fields, which accepts `undefined` but **rejects `null`** — and callers (EmailComposer, LeadModal scoring) forward lead rows straight from Supabase, where empty text columns are `null`. Any sparse lead (every PhantomBuster import) got `POST /api/email/draft: 400` before the agent ran. Switched row-derived fields to `.nullish()`; both agents already null-tolerate per-field. Verified live: the failing payload now drafts (200), a real imported lead scores (200), malformed history still 400s. Rule recorded as issues.md #31.
+
+### AI hardening: graceful fallbacks + live-or-mock data labeling (`feat 7465168`)
+
+- Every agent's `messages.create` call now `.catch`es timeout/429/529 and falls through to its structured fallback instead of an opaque 500 (client bound at 23s / `maxRetries: 0`). Covered by `tests/agents/fallback.test.ts` (8 agents).
+- New data-layer helpers `server/utils/campaigns.ts` (`getGoogleCampaigns()`) and `server/utils/social.ts` (`getSocialPlatform()`) return live platform data when configured, labelled mock otherwise. A `DataMode` (`'live' | 'mock'`) flag flows into agent prompts — mock runs get an explicit "do NOT present these numbers as real" instruction — and AI routes return `dataMode` for the UI.
+- `ai/chat` returns a friendly retry message on AI failure instead of an empty reply.
+
+### Ownership enforced on mutations behind the service key (`feat ebe344b`)
+
+The service-role client bypasses RLS, so migration 007's owner-or-admin rules are now re-checked in app code: new `server/utils/ownership.ts` (`isAdmin`, `assertCanDelete` → 404/403, `throwSingleRowError` → PGRST116 becomes 404). Delete routes (appointments, content, email-campaigns) gate through `assertCanDelete`; patch routes map missing rows to 404; `leads/index.post` + `ai/content-create` stamp `created_by` (A2A-created content keeps `created_by = null` → admin-deletable only).
+
+### GitHub workflows repaired + dependabot triage (`1d23740`, `44f1f73`, PRs #21/#22/#24/#26 merged, #23/#25 closed)
+
+| PR | Action | Reason |
+|---|---|---|
+| #21 `@anthropic-ai/sdk` 0.105→0.110 | Merged | Minor, all checks green |
+| #22 `@google-analytics/data` 4→6 | Merged (after `@dependabot rebase`) | CI green; runtime surface unchanged, mock fallback covers unconfigured GA4 |
+| #24 `actions/setup-node` 6→7 | Merged | Action-only bump, green |
+| #26 `@anthropic-ai/sdk` →0.111 | Merged | Minor, green |
+| #23 `typescript` 6→7 | Closed + **ignored major** | TS 7's native compiler drops the `./lib/tsc` subpath export that vue-tsc / `nuxt typecheck` load (`ERR_PACKAGE_PATH_NOT_EXPORTED`) |
+| #25 `pinia` 3→4 + `@pinia/nuxt` 0.11→1.0 | Closed + **ignored majors** | pinia 4 types unresolvable on the Nuxt 3 toolchain (`TS7016`); take with a coordinated Nuxt major |
+
+Exit criteria for the two ignores tracked as issues.md #30. Note: dependabot re-runs on config pushes — closing/ignoring immediately spawned the next batch of PRs, which were triaged the same day.
+
+---
+
 ## 2026-06-23 (Google Analytics 4 integration + content-create 504 fix + security)
 
 ### Google Analytics 4 — live website analytics connected (`feat c357dfa`)
