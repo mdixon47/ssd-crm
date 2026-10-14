@@ -64,6 +64,13 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: '@pinia/nuxt'
         update-types: ['version-update:semver-major']
+      # h3 v2 / @nuxt/schema v4 belong to Nuxt 4; on Nuxt 3 they break the
+      # build (toWebRequest removed) and typecheck (PR #35). Pinned as direct
+      # deps only to stop @nuxt/eslint's copies hoisting. Move with the Nuxt major.
+      - dependency-name: 'h3'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@nuxt/schema'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: '/'
