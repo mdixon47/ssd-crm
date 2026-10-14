@@ -10,11 +10,13 @@ import { requireUser } from '../utils/requireUser'
 // Exempt paths:
 // - /api/_supabase/*  — internal @nuxtjs/supabase v2 cookie sync
 // - /api/cron/*       — secured by cronSecret Bearer token inside each handler
+// - /api/learn/*      — visitor-facing (course landing + registration); handlers
+//   validate input and only expose active-course display fields
 //
 // A2A machine-to-machine:
 // - /api/a2a/*  — if a valid `Authorization: Bearer <a2aSecret>` header is
 //   present, skip session auth. Falls through to requireUser if not.
-const EXEMPT_PREFIXES = ['/api/_supabase', '/api/cron']
+const EXEMPT_PREFIXES = ['/api/_supabase', '/api/cron', '/api/learn/']
 
 export default defineEventHandler(async (event) => {
   const path = event.path || ''

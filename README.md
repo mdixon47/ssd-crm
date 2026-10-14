@@ -106,7 +106,7 @@ by the Remotion pipeline).
 ### 3. Initialize the database
 
 In the Supabase dashboard, open the SQL editor and run the migrations in
-`supabase/migrations/` **in numeric order** (`001` → `012`). See
+`supabase/migrations/` **in numeric order** (`001` → `013`). See
 [Database Migrations](#database-migrations) below.
 
 ### 4. Run locally
@@ -349,6 +349,7 @@ Run in numeric order in the Supabase SQL editor:
 | `010_content_items.sql` | Content items (LinkedIn/FB/IG/Email) |
 | `011_email_conversations.sql` | Two-way email threads (message `direction`) |
 | `012_lead_linkedin_url.sql` | `linkedin_url` on leads (PhantomBuster imports + dedupe) |
+| `013_course_registrations.sql` | Courses, registrations, onboarding `tasks`, `workflow_failures`; `register_for_course()` (public landing pages at `/learn/<slug>`) |
 
 ---
 
@@ -417,7 +418,7 @@ ssd-crm/
 │   └── utils/                    # Supabase/Anthropic/Resend/PhantomBuster clients,
 │                                 #   live-or-mock data layer, ownership guards
 ├── stores/leads.ts               # Pinia leads store
-├── supabase/migrations/          # 001 … 012
+├── supabase/migrations/          # 001 … 013
 ├── tests/                        # vitest — agent fallbacks, PhantomBuster mapper
 ├── marketing/video/              # Remotion project (isolated)
 ├── docs/                         # SECURITY, devsecops, live-data, issues, …

@@ -9,12 +9,15 @@ import { serverSupabaseUser } from '#supabase/server'
 // applies this to every /api/** route, so handlers can also call
 // `await getServerSession(event)` if they only need the email/id.
 export async function requireUser(event: H3Event) {
-  const user = await serverSupabaseUser(event)
-  if (!user) {
+  const claims = await serverSupabaseUser(event)
+  if (!claims?.sub) {
     throw createError({
       statusCode: 401,
       statusMessage: 'Unauthorized',
     })
   }
-  return user
+  // @nuxtjs/supabase v2 returns verified JWT claims, not a User object: the
+  // user id is `sub`. Expose it as `id` so `created_by: user.id` and the
+  // owner/admin checks in ownership.ts receive a real id (not undefined).
+  return { ...claims, id: claims.sub, email: claims.email as string | undefined }
 }
