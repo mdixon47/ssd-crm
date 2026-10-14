@@ -6,6 +6,9 @@
 // middleware exists for UX (no flash of protected content) and SPA
 // navigation.
 export default defineNuxtRouteMiddleware((to) => {
+  // Public course landing pages (/learn/<slug>) are for visitors.
+  if (to.path.startsWith('/learn/')) return
+
   const user = useSupabaseUser()
   const isLogin = to.path === '/login'
 

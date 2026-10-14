@@ -98,6 +98,7 @@ const navLinks = [
   { to: '/sales-calls', label: 'Sales Calls', icon: '📞' },
   { to: '/appointments', label: 'Appointments', icon: '📅' },
   { to: '/contracts', label: 'Contracts', icon: '📝' },
+  { to: '/courses', label: 'Courses', icon: '🎓' },
   { to: '/pricing', label: 'Pricing Sheet', icon: '💰' },
   { to: '/campaigns', label: 'Campaigns', icon: '📢' },
   { to: '/analytics', label: 'Web Analytics', icon: '🌐' },
