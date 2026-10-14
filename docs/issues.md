@@ -87,7 +87,7 @@ The current `npm audit` CI job fails the build but doesn't write findings to the
 **Current stance**: `package-lock.json` is in `.gitignore`. Each environment regenerates a local lockfile via `npm install`:
 - Local dev: lockfile written on first `npm install`; not committed.
 - CI (GitHub Actions): fresh `npm install` per run; no `rm -f` step needed.
-- Netlify: fresh `npm install` per build; uses bundled npm from Node 22.
+- Netlify: fresh `npm install` per build; uses bundled npm from Node 24 (11.x). npm 10.9.x (Node 22) crashes on this tree with `Cannot read properties of null (reading 'edgesOut')`, so CI and Netlify moved to Node 24 together (PR #35).
 
 **Trade-off**: lose strict transitive-version pinning across environments. `package.json` ranges (`^x.y.z`) provide bounded resolution; this is acceptable while platform-skew on the lockfile cannot be solved upstream.
 

@@ -8,9 +8,9 @@
 
 [build.environment]
   NITRO_PRESET = "netlify"
-  NODE_VERSION = "22"
-  # NPM_VERSION intentionally unset — use the npm bundled with Node 22 (10.x).
-  # Same npm version GitHub Actions uses; matches package-lock-less install.
+  NODE_VERSION = "24"
+  # NPM_VERSION intentionally unset — use the npm bundled with Node 24 (11.x).
+  # npm 10.9.x crashes on this tree (arborist #loadPeerSet "edgesOut"); same npm as CI.
   NPM_FLAGS = "--no-audit --no-fund"
   # macOS-only workaround in dev (see docs/issues.md). Harmless on Linux runners.
   TMPDIR = "/tmp"
