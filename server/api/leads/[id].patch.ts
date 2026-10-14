@@ -3,7 +3,7 @@ import { throwSingleRowError } from '~/server/utils/ownership'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
-  const body = await readBody(event)
+  const body = (await readBody<Record<string, unknown>>(event)) ?? {}
   const supabase = createSupabaseClient()
 
   if (!id) throw createError({ statusCode: 400, message: 'Lead ID is required' })

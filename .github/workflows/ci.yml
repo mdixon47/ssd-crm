@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
       # No lockfile in the repo (see docs/issues.md #14b); npm install
       # resolves fresh on the Linux runner so platform-specific native
       # bindings (oxc-parser) are picked correctly.
@@ -36,7 +36,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
       - run: npm install --no-audit --no-fund
       - run: npx nuxt prepare
       - run: npm run typecheck
@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
       - run: npm install --no-audit --no-fund
       # tsconfig.json extends ./.nuxt/tsconfig.json; vitest resolves the
       # extends chain at startup so nuxt prepare must run first.
@@ -63,7 +63,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
       - run: npm install --no-audit --no-fund
       - name: Nuxt build
         env:
